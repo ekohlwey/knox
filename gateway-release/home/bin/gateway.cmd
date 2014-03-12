@@ -86,10 +86,11 @@ SET ERR_FILE=%LOG_DIR%\.err
 	) 
 	ECHO "Starting Knox "
 	DEL "%PID_FILE%"
-	start "KnoxGateway"  java  -jar "%KNOX_JAR%">> "%OUT_FILE%" 2>>"%ERR_FILE%"
+	start   javaw  -jar "%KNOX_JAR%">> "%OUT_FILE%" 2>>"%ERR_FILE%"
 	echo "getting pid"
-	for /f "tokens=2 delims=," %%A in ('tasklist -v /fo csv /nh /fi "WINDOWTITLE  eq KnoxGateway"') do (
-	echo %%A>"%PID_FILE%"
+	rem for /f "tokens=2 delims=," %%A in ('tasklist -v /fo csv /nh /fi "WINDOWTITLE  eq KnoxGateway"') do (
+	for /f "tokens=2 delims=," %%A in ('tasklist -v /fo csv /nh /fi "Imagename  eq javaw.exe"') do (
+	  echo %%A>"%PID_FILE%"
 	)
 	CALL :getPID
 	CALL :knoxIsRunning %PID%
@@ -154,16 +155,15 @@ SET ERR_FILE=%LOG_DIR%\.err
 :setDirPermission 
 	SET dirName=%1
 	SET uName=%2
-	dir "%dirName%" >NUL 2>NUL
+	dir %dirName% >NUL 2>NUL
 	IF NOT %ERRORLEVEL% ==0 ( 
-		ECHO "making dir"
-		mkdir  "%dirName%" 
+		ECHO "making dir" %dirName%
+		mkdir  %dirName% 
 	)
 	IF NOT %ERRORLEVEL% ==0 (
-		ECHO "Can't access or create \"$dirName\" folder. Run sudo $0 setup."
+		ECHO "Can't access or create %dirName%
 		Exit /B %1
 	)	
-	echo %dirName%
 	GOTO :EOF
 
 :knoxStop {
@@ -175,7 +175,7 @@ SET ERR_FILE=%LOG_DIR%\.err
 		GOTO :EOF
 	)
 	ECHO "Stopping Knox %PID% "
-	taskkill /PID %PID%
+	taskkill /F /PID  %PID%
 	IF NOT %ERRORLEVEL% ==0 (
 		ECHO  "failed. \n"
 		Exit /B 1
@@ -212,14 +212,13 @@ SET ERR_FILE=%LOG_DIR%\.err
 	IF [%uName%]==[""] (
 		uName="%USERNAME%" 
 	)  	
-	echo %uName%
-	CALL  :setDirPermission "%PID_DIR%\" %uName%
-	CALL  :setDirPermission "%LOG_DIR%\" %uName%
+	CALL  :setDirPermission "%PID_DIR%" %uName%
+	CALL  :setDirPermission "%LOG_DIR%" %uName%
 	java -DGATEWAY_HOME="%KNOX_HOME%" -jar "%KNOX_JAR%" -persist-master -nostart
 	GOTO :EOF
 
 :printHelp 
-	java -jar %KNOX_JAR% -help
+	java -jar "%KNOX_JAR%" -help
 	GOTO :EOF
 	
 

@@ -21,10 +21,10 @@
         Release build file for the Apache Knox Gateway
     </description>
 
-    <property name="gateway-name" value="Apache Knox (Incubator)"/>
+    <property name="gateway-name" value="Apache Knox"/>
     <property name="gateway-project" value="knox"/>
-    <property name="gateway-artifact" value="knox-incubating"/>
-    <property name="gateway-version" value="0.4.0-SNAPSHOT"/>
+    <property name="gateway-artifact" value="knox"/>
+    <property name="gateway-version" value="0.5.0-SNAPSHOT"/>
     <property name="release-manager" value="kminder"/>
 
     <property name="gateway-home" value="${gateway-artifact}-${gateway-version}"/>
@@ -34,8 +34,8 @@
     <property name="install.dir" value="install"/>
     <property name="candidate.dir" value="candidate"/>
 
-    <property name="svn.release.path" value="https://dist.apache.org/repos/dist/release/incubator/${gateway-project}" />
-    <property name="svn.staging.path" value="https://dist.apache.org/repos/dist/dev/incubator/${gateway-project}" />
+    <property name="svn.release.path" value="https://dist.apache.org/repos/dist/release/${gateway-project}" />
+    <property name="svn.staging.path" value="https://dist.apache.org/repos/dist/dev/${gateway-project}" />
 
     <condition property="isUnix">
         <os family="unix"/>
@@ -64,10 +64,6 @@
     </condition>
     <condition property="curl.cmd" value="curl">
         <os family="windows" />
-    </condition>
-
-    <condition property="rpm-builder" value="./gateway-rpm/build_knox_rpm.sh">
-        <os family="unix" />
     </condition>
 
     <target name="_init" description="Initialize the build.">
@@ -108,27 +104,14 @@
         </exec>
     </target>
 
-    <target name="post-build" depends="_init,_rpm,_changes"/>
+    <target name="post-build" depends="_init,_changes"/>
 
     <target name="_changes" depends="_init">
         <copy file="CHANGES" todir="target/${gateway-version}"/>
     </target>
 
-    <target name="set-rpm-builder-privs" if="isUnix">
-        <chmod file="${rpm-builder}" perm="700"/>	     
-    </target>
 
-    <target name="rpm" depends="package,_rpm" description="Package and build RPM of the product."/>
-    <target name="_rpm" depends="_init,set-rpm-builder-privs" description="Build RPM of the product from existing package.">
-        <exec executable="${rpm-builder}">
-            <arg value="target"/>
-            <arg value="${gateway-artifact}"/>
-            <arg value="${gateway-version}"/>
-            <arg value="${release-manager}"/>
-        </exec>
-        <checksum file="target/${gateway-version}/${gateway-artifact}-${gateway-version}.rpm" algorithm="MD5" fileext=".md5" forceOverwrite="yes"/>
-        <checksum file="target/${gateway-version}/${gateway-artifact}-${gateway-version}.rpm" algorithm="SHA1" fileext=".sha" forceOverwrite="yes"/>
-    </target>
+
 
     <target name="build-candidate">
         <exec executable="${curl.cmd}">
@@ -142,18 +125,15 @@
     <target name="download-candidate">
         <mkdir dir="${candidate.dir}"/>
         <get dest="${candidate.dir}">
-            <url url="${build-url}/knox-incubating-${gateway-version}.zip"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.zip.md5"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.zip.sha"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}-src.zip"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}-src.zip.md5"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}-src.zip.sha"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.tar.gz"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.tar.gz.md5"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.tar.gz.sha"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.rpm"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.rpm.md5"/>
-            <url url="${build-url}/knox-incubating-${gateway-version}.rpm.sha"/>
+            <url url="${build-url}/knox-${gateway-version}.zip"/>
+            <url url="${build-url}/knox-${gateway-version}.zip.md5"/>
+            <url url="${build-url}/knox-${gateway-version}.zip.sha"/>
+            <url url="${build-url}/knox-${gateway-version}-src.zip"/>
+            <url url="${build-url}/knox-${gateway-version}-src.zip.md5"/>
+            <url url="${build-url}/knox-${gateway-version}-src.zip.sha"/>
+            <url url="${build-url}/knox-${gateway-version}.tar.gz"/>
+            <url url="${build-url}/knox-${gateway-version}.tar.gz.md5"/>
+            <url url="${build-url}/knox-${gateway-version}.tar.gz.sha"/>
             <url url="${build-url}/CHANGES"/>
         </get>
     </target>
@@ -161,24 +141,20 @@
     <target name="download-stage">
         <mkdir dir="${install.dir}"/>
         <get dest="${install.dir}">
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.zip"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.zip.md5"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.zip.sha"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.zip.asc"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}-src.zip"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}-src.zip.md5"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}-src.zip.sha"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}-src.zip.asc"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.tar.gz"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.tar.gz.md5"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.tar.gz.sha"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.tar.gz.asc"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.rpm"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.rpm.md5"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.rpm.sha"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/knox-incubating-${gateway-version}.rpm.asc"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/CHANGES"/>
-            <url url="${svn.staging.path}/knox-incubating-${gateway-version}/KEYS"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.zip"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.zip.md5"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.zip.sha"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.zip.asc"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}-src.zip"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}-src.zip.md5"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}-src.zip.sha"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}-src.zip.asc"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.tar.gz"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.tar.gz.md5"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.tar.gz.sha"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/knox-${gateway-version}.tar.gz.asc"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/CHANGES"/>
+            <url url="${svn.staging.path}/knox-${gateway-version}/KEYS"/>
         </get>
     </target>
 
@@ -213,15 +189,6 @@
         <checksum file="${install.dir}/${gateway-artifact}-${gateway-version}.tar.gz" algorithm="SHA" verifyproperty="tar.sha.ok"/>
         <fail message="SHA Invalid"><condition><isfalse value="${tar.sha.ok}"/></condition></fail>
 
-        <echo>Verify ${gateway-artifact}-${gateway-version}.rpm</echo>
-        <exec executable="gpg" dir="${install.dir}" failonerror="true">
-            <arg value="--verify"/>
-            <arg value="${gateway-artifact}-${gateway-version}.rpm.asc"/>
-        </exec>
-        <checksum file="${install.dir}/${gateway-artifact}-${gateway-version}.rpm" verifyproperty="rpm.md5.ok"/>
-        <fail message="MD5 Invalid"><condition><isfalse value="${rpm.md5.ok}"/></condition></fail>
-        <checksum file="${install.dir}/${gateway-artifact}-${gateway-version}.rpm" algorithm="SHA" verifyproperty="rpm.sha.ok"/>
-        <fail message="SHA Invalid"><condition><isfalse value="${rpm.sha.ok}"/></condition></fail>
     </target>
 
     <target name="sign-candidate" depends="_init" description="Sign a downloaded created release.">
@@ -244,11 +211,6 @@
             <arg value="${gateway-artifact}-${gateway-version}.tar.gz"/>
         </exec>
         <exec executable="gpg" dir="${candidate.dir}">
-            <arg value="--armor"/>
-            <arg value="--detach-sig"/>
-            <arg value="${gateway-artifact}-${gateway-version}.rpm"/>
-        </exec>
-        <exec executable="gpg" dir="${candidate.dir}">
             <arg value="--export"/>
             <arg value="--armor"/>
             <arg value="--output"/>
@@ -267,7 +229,7 @@
         <echo message="${stage-message}"/>
     </target>
 
-    <target name="release" depends="package,rpm" description="Build release artifacts including RPM and sign."/>
+    <target name="release" depends="package" description="Build release artifacts and sign."/>
 
     <target name="stage-candidate" depends="unstage-candidate" description="Stage release artifacts.">
         <exec executable="svn">
@@ -292,7 +254,7 @@
         <exec executable="svn">
             <arg value="move"/>
             <arg value="${svn.staging.path}/${gateway-artifact}-${gateway-version}"/>
-            <arg value="${svn.release.path}/${gateway-version}-incubating"/>
+            <arg value="${svn.release.path}/${gateway-version}"/>
             <arg value="-m"/>
             <arg value="Releasing Apache Knox Gateway version ${gateway-version}." />
         </exec>
@@ -311,12 +273,22 @@
         <chmod file="${install.dir}/${gateway-artifact}-${gateway-version}/bin/gateway.sh" perm="544"/>
         <chmod file="${install.dir}/${gateway-artifact}-${gateway-version}/bin/ldap.sh" perm="544"/>
         <chmod file="${install.dir}/${gateway-artifact}-${gateway-version}/bin/knoxcli.sh" perm="544"/>
+        <exec executable="bin/knoxcli.sh" dir="${install.dir}/${gateway-artifact}-${gateway-version}">
+            <arg value="create-master"/>
+            <arg value="--master"/>
+            <arg value="knox"/>
+        </exec>
+        <exec executable="bin/knoxcli.sh" dir="${install.dir}/${gateway-artifact}-${gateway-version}">
+            <arg value="create-cert"/>
+        </exec>
     </target>
 
     <target name="install-test-home" depends="_install-test-home-unix,_install-test-home-windows" description="Install binary release into install directory.">
+        <!--
         <echo file="${install.dir}/${gateway-artifact}-${gateway-version}/data/security/master">#1.0# Mon, Aug 26 2013 14:25:31.483
             cGkvajhUZHBNSTQ9OjpPMk5PQktYaHRyUmJoTW1zWGo0bytRPT06OkxtVjlvSDdIOWdvSEZqNTRlWVJ2N3c9PQ==</echo>
         <chmod file="${install.dir}/${gateway-artifact}-${gateway-version}/data/security/master" perm="600"/>
+        -->
     </target>
 
     <target name="start-test-ldap" description="Spawn test LDAP server.">

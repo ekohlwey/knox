@@ -21,12 +21,12 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>gateway</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>0.5.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>gateway</name>
     <description>The Apache Knox Project</description>
-    <url>http://knox.incubator.apache.org/</url>
+    <url>http://knox.apache.org/</url>
 
     <modules>
         <module>gateway-test-utils</module>
@@ -73,10 +73,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <internal.maven.repo>file:///tmp/knoxtemprepo</internal.maven.repo>
-        <gateway-name>Apache Knox (Incubator)</gateway-name>
+        <repo.id>internal.repo</repo.id>
+        <gateway-name>Apache Knox</gateway-name>
         <gateway-project>knox</gateway-project>
-        <gateway-artifact>knox-incubating</gateway-artifact>
-        <gateway-version>0.4.0-SNAPSHOT</gateway-version>
+        <gateway-artifact>knox</gateway-artifact>
+        <gateway-version>0.5.0-SNAPSHOT</gateway-version>
         <gateway-group>org.apache.hadoop</gateway-group>
         <hadoop-version>2.2.0</hadoop-version>
         <jetty-version>8.1.14.v20131031</jetty-version>
@@ -96,12 +97,12 @@
     </organization>
 
     <scm>
-        <connection>scm:git:git://git-wip-us.apache.org/repos/asf/incubator-knox.git</connection>
+        <connection>scm:git:git://git-wip-us.apache.org/repos/asf/knox.git</connection>
     </scm>
 
     <distributionManagement>
         <repository>
-            <id>internal.repo</id>
+            <id>${repo.id}</id>
             <name>Internal Repository</name>
             <url>${internal.maven.repo}</url>
         </repository>
@@ -164,6 +165,8 @@
                     <excludeSubProjects>false</excludeSubProjects>
                     <excludes>
                         <exclude>.git/**</exclude>
+                        <exclude>.pc/**</exclude>
+                        <exclude>debian/**</exclude>
                         <exclude>.gitignore/**</exclude>
                         <exclude>.svn/**</exclude>
                         <exclude>.idea/**</exclude>
@@ -849,7 +852,7 @@
             <dependency>
                 <groupId>org.apache.shiro</groupId>
                 <artifactId>shiro-web</artifactId>
-                <version>1.2.1</version>
+                <version>1.2.3</version>
             </dependency>
 
             <!-- Html pull parser.  EPLv1 license -->

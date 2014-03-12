@@ -44,12 +44,13 @@ import org.apache.log4j.PropertyConfigurator;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
+import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.jboss.shrinkwrap.api.exporter.ExplodedExporter;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
+import org.xml.sax.SAXException;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -77,6 +78,7 @@ public class GatewayServer {
   private static Properties buildProperties;
 
   private Server jetty;
+  private ErrorHandler errorHandler;
   private GatewayConfig config;
   private ContextHandlerCollection contexts;
   private FileTopologyProvider monitor;
@@ -90,10 +92,10 @@ public class GatewayServer {
       if( cmd.hasOption( GatewayCommandLine.HELP_LONG ) ) {
         GatewayCommandLine.printHelp();
       } else if( cmd.hasOption( GatewayCommandLine.VERSION_LONG ) ) {
-        buildProperties = loadBuildProperties();
-        System.out.println( res.gatewayVersionMessage( // I18N not required.
-            buildProperties.getProperty( "build.version", "unknown" ),
-            buildProperties.getProperty( "build.hash", "unknown" ) ) );
+        printVersion();
+      } else if( cmd.hasOption( GatewayCommandLine.REDEPLOY_LONG  ) ) {
+        GatewayConfig config = new GatewayConfigImpl();
+        redeployTopologies( config, cmd.getOptionValue( GatewayCommandLine.REDEPLOY_LONG ) );
       } else {
         services = instantiateGatewayServices();
         if (services == null) {
@@ -110,11 +112,19 @@ public class GatewayServer {
           startGateway( config, services );
         }
       }
-    } catch( ParseException e ) {
+    } catch ( ParseException e ) {
       log.failedToParseCommandLine( e );
-    } catch (ServiceLifecycleException e) {
+      GatewayCommandLine.printHelp();
+    } catch ( ServiceLifecycleException e ) {
       log.failedToStartGateway( e );
     }
+  }
+
+  private static void printVersion() {
+    buildProperties = loadBuildProperties();
+    System.out.println( res.gatewayVersionMessage( // I18N not required.
+        buildProperties.getProperty( "build.version", "unknown" ),
+        buildProperties.getProperty( "build.hash", "unknown" ) ) );
   }
 
   private static GatewayServices instantiateGatewayServices() {
@@ -179,6 +189,52 @@ public class GatewayServer {
     input.close();
   }
 
+  private static void redeployTopology( Topology topology ) {
+    File topologyFile = new File( topology.getUri() );
+    long start = System.currentTimeMillis();
+    long limit = 1000L; // One second.
+    long elapsed = 1;
+    while( elapsed <= limit ) {
+      try {
+        long origTimestamp = topologyFile.lastModified();
+        long setTimestamp = Math.max( System.currentTimeMillis(), topologyFile.lastModified() + elapsed );
+        if( topologyFile.setLastModified( setTimestamp ) ) {
+          long newTimstamp = topologyFile.lastModified();
+          if( newTimstamp > origTimestamp ) {
+            break;
+          } else {
+            Thread.sleep( 10 );
+            elapsed = System.currentTimeMillis() - start;
+            continue;
+          }
+        } else {
+          log.failedToRedeployTopology( topology.getName() );
+          break;
+        }
+      } catch( InterruptedException e ) {
+        log.failedToRedeployTopology( topology.getName(), e );
+        e.printStackTrace();
+      }
+    }
+  }
+
+  public static void redeployTopologies( GatewayConfig config, String topologyName ) {
+    try {
+      File topologiesDir = calculateAbsoluteTopologiesDir( config );
+      FileTopologyProvider provider = new FileTopologyProvider( topologiesDir );
+      provider.reloadTopologies();
+      for( Topology topology : provider.getTopologies() ) {
+        if( topologyName == null || topologyName.equals( topology.getName() ) )  {
+          redeployTopology( topology );
+        }
+      }
+    } catch( SAXException e ) {
+      log.failedToRedeployTopologies( e );
+    } catch( IOException e ) {
+      log.failedToRedeployTopologies( e );
+    }
+  }
+
   public static GatewayServer startGateway( GatewayConfig config, GatewayServices svcs ) {
     try {
       log.startingGateway();
@@ -240,8 +296,7 @@ public class GatewayServer {
 
     // Create the global context handler.
     contexts = new ContextHandlerCollection();
-
-    // A map to keep track of current deployments by cluster name.
+     // A map to keep track of current deployments by cluster name.
     deployments = new ConcurrentHashMap<String, WebAppContext>();
 
     // Determine the socket address and check availability.
@@ -312,10 +367,13 @@ public class GatewayServer {
   private synchronized void internalDeploy( Topology topology, File warFile ) {
     String name = topology.getName();
     String warPath = warFile.getAbsolutePath();
+    errorHandler = new ErrorHandler();
+    errorHandler.setShowStacks(false);
     WebAppContext context = new WebAppContext();
     context.setDefaultsDescriptor( null );
     context.setContextPath( "/" + config.getGatewayPath() + "/" + name );
     context.setWar( warPath );
+    context.setErrorHandler(errorHandler);
     // internalUndeploy( topology ); KNOX-152
     context.setAttribute( GatewayServices.GATEWAY_CLUSTER_ATTRIBUTE, name );
     deployments.put( name, context );
@@ -351,11 +409,9 @@ public class GatewayServer {
       synchronized ( GatewayServer.this ) {
         for( TopologyEvent event : events ) {
           Topology topology = event.getTopology();
-          File topoDir = calculateAbsoluteTopologiesDir();
           File deployDir = calculateAbsoluteDeploymentsDir();
-          File warDir = calculateDeploymentDir( topology );
           if( event.getType().equals( TopologyEvent.Type.DELETED ) ) {
-            File[] files = topoDir.listFiles( new WarDirFilter( topology.getName() + "\\.war\\.[0-9A-Fa-f]+" ) );
+            File[] files = deployDir.listFiles( new WarDirFilter( topology.getName() + "\\.war\\.[0-9A-Fa-f]+" ) );
             if( files != null ) {
               for( File file : files ) {
                 auditor.audit( Action.UNDEPLOY, topology.getName(), ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE );
@@ -366,6 +422,7 @@ public class GatewayServer {
             }
           } else {
             try {
+              File warDir = calculateDeploymentDir( topology );
               if( !warDir.exists() ) {
                 auditor.audit( Action.DEPLOY, topology.getName(), ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE );
                 log.deployingTopology( topology.getName(), warDir.getAbsolutePath() );
