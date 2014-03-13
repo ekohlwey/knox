@@ -6,31 +6,30 @@ import java.io.OutputStream;
 
 public abstract class SSHAction {
 
-	private final String description;
-	private final String command;
-	private final String argGrammar;
+  private final String description;
+  private final String command;
+  private final String argGrammar;
 
+  public String getDescription() {
+    return description;
+  }
 
-	public String getDescription() {
-		return description;
-	}
+  public String getCommand() {
+    return command;
+  }
 
-	public String getCommand() {
-		return command;
-	}
-	
-	public String getArgGrammar() {
-		return argGrammar;
-	}
+  public String getArgGrammar() {
+    return argGrammar;
+  }
 
-	public SSHAction(String command, String argGrammar, String description) {
-		this.description = description;
-		this.argGrammar = argGrammar;
-		this.command = command;
-	}
+  public SSHAction(String command, String argGrammar, String description) {
+    this.description = description;
+    this.argGrammar = argGrammar;
+    this.command = command;
+  }
 
-	public abstract int handleCommand(String command, String commandLine,
-			BufferedReader inputStream, OutputStream outputStream,
-			OutputStream error) throws IOException;
+  public abstract int handleCommand(String command, String commandLine,
+      BufferedReader inputStream, OutputStream outputStream, OutputStream error)
+      throws IOException;
 
 }

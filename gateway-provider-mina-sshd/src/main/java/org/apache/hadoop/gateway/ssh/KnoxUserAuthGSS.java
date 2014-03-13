@@ -12,33 +12,32 @@ import org.apache.sshd.server.session.ServerSession;
 
 public class KnoxUserAuthGSS extends UserAuthGSS {
 
-	private static final Auditor AUDITOR = AuditServiceFactory
-			.getAuditService().getAuditor(AuditConstants.DEFAULT_AUDITOR_NAME,
-					AuditConstants.KNOX_SERVICE_NAME,
-					AuditConstants.KNOX_COMPONENT_NAME);
+  private static final Auditor AUDITOR = AuditServiceFactory.getAuditService()
+      .getAuditor(AuditConstants.DEFAULT_AUDITOR_NAME,
+          AuditConstants.KNOX_SERVICE_NAME, AuditConstants.KNOX_COMPONENT_NAME);
 
-	public static class Factory extends UserAuthGSS.Factory {
-		public org.apache.sshd.server.UserAuth create() {
+  public static class Factory extends UserAuthGSS.Factory {
+    public org.apache.sshd.server.UserAuth create() {
 
-			return new KnoxUserAuthGSS();
-		};
-	}
+      return new KnoxUserAuthGSS();
+    };
+  }
 
-	@Override
-	public Boolean auth(ServerSession session, String username, String service,
-			Buffer buffer) throws Exception {
+  @Override
+  public Boolean auth(ServerSession session, String username, String service,
+      Buffer buffer) throws Exception {
 
-		Boolean auth = super.auth(session, username, service, buffer);
-		if (auth == null) {
-			// continue
-		} else if (auth) {
-			AUDITOR.audit(Action.AUTHENTICATION, username,
-					ResourceType.PRINCIPAL, ActionOutcome.SUCCESS);
-		} else {
-			AUDITOR.audit(Action.AUTHENTICATION, username,
-					ResourceType.PRINCIPAL, ActionOutcome.FAILURE);
-		}
-		return auth;
-	}
+    Boolean auth = super.auth(session, username, service, buffer);
+    if (auth == null) {
+      // continue
+    } else if (auth) {
+      AUDITOR.audit(Action.AUTHENTICATION, username, ResourceType.PRINCIPAL,
+          ActionOutcome.SUCCESS);
+    } else {
+      AUDITOR.audit(Action.AUTHENTICATION, username, ResourceType.PRINCIPAL,
+          ActionOutcome.FAILURE);
+    }
+    return auth;
+  }
 
 }
