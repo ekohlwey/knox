@@ -27,12 +27,13 @@ public class HelpSSHAction extends SSHAction {
       longestCommand = Math.max(longestCommand, action.getCommand().length());
       longestArgs = Math.max(longestArgs, action.getArgGrammar().length());
     }
-    printStream.print("Knox SSH Provider help.\n");
+    printStream.println("Knox SSH Provider help.");
     String formatString = "%" + longestCommand + "s %-" + longestArgs
-        + "s %s\n";
+        + "s %s";
     for (SSHAction action : actions.values()) {
       printStream.format(formatString, action.getCommand(),
           action.getArgGrammar(), action.getDescription());
+      printStream.println();
     }
     printStream.close();
     return 0;

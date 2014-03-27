@@ -6,8 +6,14 @@ import org.apache.sshd.server.Command;
 
 public class KnoxTunnelShellFactory implements Factory<Command> {
 
+  private final String topologyName;
+
+  public KnoxTunnelShellFactory(String topologyName) {
+    this.topologyName = topologyName;
+  }
+  
   @Override
-  public Command create() {
-    return new KnoxTunnelShell();
+  public KnoxTunnelShell create() {
+    return new KnoxTunnelShell(topologyName);
   }
 }

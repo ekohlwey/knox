@@ -8,20 +8,19 @@ import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AuditorWork {
+public class TerminalAuditWork {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AuditorWork.class);
+  private static final Logger LOG = LoggerFactory
+      .getLogger(TerminalAuditWork.class);
 
   private final BufferedReader reader;
-  private final BlockingQueue<Runnable> queue;
   final String user;
   private final KnoxTunnelShell originatingShell;
   final String resource;
 
-  public AuditorWork(String resource, String user, BufferedReader buffer,
-      KnoxTunnelShell originatingShell, BlockingQueue<Runnable> queue) {
+  public TerminalAuditWork(String resource, String user, BufferedReader buffer,
+      KnoxTunnelShell originatingShell) {
     this.reader = buffer;
-    this.queue = queue;
     this.user = user;
     this.resource = resource;
     this.originatingShell = originatingShell;
@@ -29,10 +28,6 @@ public class AuditorWork {
 
   public KnoxTunnelShell getOriginatingShell() {
     return originatingShell;
-  }
-
-  public BlockingQueue<Runnable> getQueue() {
-    return queue;
   }
 
   public BufferedReader getReader() {
