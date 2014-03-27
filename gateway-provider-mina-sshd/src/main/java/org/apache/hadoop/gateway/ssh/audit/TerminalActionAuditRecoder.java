@@ -10,11 +10,11 @@ import org.apache.hadoop.gateway.audit.api.Auditor;
 import org.apache.hadoop.gateway.audit.api.ResourceType;
 import org.apache.hadoop.gateway.audit.log4j.audit.AuditConstants;
 
-public class TerminalAuditor {
+public class TerminalActionAuditRecoder {
 
-  private final ErrorHandler handler;
+  private final TerminalErrorHandler handler;
 
-  public TerminalAuditor(ErrorHandler handler) {
+  public TerminalActionAuditRecoder(TerminalErrorHandler handler) {
     this.handler = handler;
   }
 
@@ -22,7 +22,7 @@ public class TerminalAuditor {
       .getAuditor(AuditConstants.DEFAULT_AUDITOR_NAME,
           AuditConstants.KNOX_SERVICE_NAME, AuditConstants.KNOX_COMPONENT_NAME);
 
-  public void auditWork(AuditorWork work) {
+  public void auditWork(TerminalAuditWork work) {
     BufferedReader reader = work.getReader();
     String line;
     try {

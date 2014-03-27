@@ -26,6 +26,7 @@ public class Provider {
   private String name;
   private boolean enabled;
   private Map<String, String> params = new LinkedHashMap<String, String>();
+  private Topology topology;
 
   public Provider() {
   }
@@ -66,4 +67,11 @@ public class Provider {
     this.role = role;
   }
 
+  public Topology getTopology(){
+    return topology;
+  }
+  
+  public void setTopology(Topology topology){
+    this.topology = topology;
+  }
 }

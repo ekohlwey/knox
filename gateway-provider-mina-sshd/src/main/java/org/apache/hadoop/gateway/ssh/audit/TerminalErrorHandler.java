@@ -6,9 +6,9 @@ import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ErrorHandler {
+public class TerminalErrorHandler {
 
-  Logger LOG = LoggerFactory.getLogger(ErrorHandler.class);
+  Logger LOG = LoggerFactory.getLogger(TerminalErrorHandler.class);
 
   public void handleError(IOException e, KnoxTunnelShell originatingShell) {
     LOG.error("Unable to read piped audit log stream. "

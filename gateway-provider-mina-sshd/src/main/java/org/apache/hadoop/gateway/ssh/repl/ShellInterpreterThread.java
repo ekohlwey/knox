@@ -4,16 +4,20 @@ import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
 import org.apache.hadoop.gateway.ssh.commands.UnsupportedCommandAction;
 import org.apache.sshd.common.util.NoCloseInputStream;
+import org.apache.sshd.common.util.NoCloseOutputStream;
 
 import com.google.common.io.LineReader;
 
 public class ShellInterpreterThread extends Thread implements Closeable {
+
   private final ShellExitHandler exitHandler;
   private final Map<String, SSHAction> shellActions;
   private final ReentrantLock stopLock = new ReentrantLock();
@@ -21,16 +25,18 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   private final KnoxTunnelShell knoxShell;
 
   public ShellInterpreterThread(KnoxTunnelShell knoxShell,
-      ShellExitHandler exitHandler, Map<String, SSHAction> shellActions) {
+      ShellExitHandler exitHandler, Map<String, SSHAction> actionMap) {
     this.knoxShell = knoxShell;
     this.exitHandler = exitHandler;
-    this.shellActions = shellActions;
+    this.shellActions = actionMap;
   }
 
   public void run() {
     boolean run = true;
     int result = 0;
     while (run) {
+      PrintStream consolePrinter = new PrintStream(new NoCloseOutputStream(knoxShell.getOutputStream()));
+      consolePrinter.printf("%s@%s > ", knoxShell.getUsername(), knoxShell.getTopologyName());
       BufferedReader reader = knoxShell.getReader();
       String line = null;
       try {

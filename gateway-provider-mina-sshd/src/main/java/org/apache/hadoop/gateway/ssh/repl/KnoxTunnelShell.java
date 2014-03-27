@@ -26,15 +26,20 @@ public class KnoxTunnelShell implements Command {
   private static final Logger LOG = LoggerFactory
       .getLogger(KnoxTunnelShell.class);
 
-  private Map<String, SSHAction> shellActions = new HashMap<String, SSHAction>();
   private ExitCallback exitCallback;
   private OutputStream errorStream;
   private OutputStream outputStream;
+  private final Map<String, SSHAction> actionMap = new HashMap<String, SSHAction>();
   private final ShellExitHandler exitHandler = new ShellExitHandler(this);
   private final ShellInterpreterThread interpreterThread = new ShellInterpreterThread(
-      this, exitHandler, shellActions);
-
+      this, exitHandler, actionMap);
+  private final String topologyName;
   private BufferedReader reader;
+  private  String username;
+
+  public KnoxTunnelShell(String topologyName) {
+    this.topologyName = topologyName;
+  }
 
   @Override
   public void destroy() {
@@ -69,11 +74,18 @@ public class KnoxTunnelShell implements Command {
   @Override
   public void start(Environment arg0) throws IOException {
     Map<String, String> env = arg0.getEnv();
-    final String user = env.get(Environment.ENV_USER);
+    username = env.get(Environment.ENV_USER);
     List<SSHAction> actions = new ArrayList<SSHAction>();
-    actions.add(new ConnectSSHAction(user, null));
-    actions.add(new HelpSSHAction(shellActions));
+    actions.add(new ConnectSSHAction(username, null));
+    actions.add(new HelpSSHAction(actionMap));
+    for (SSHAction action : actions) {
+      actionMap.put(action.getCommand(), action);
+    }
     interpreterThread.start();
+  }
+
+  public String getTopologyName() {
+    return topologyName;
   }
 
   public ExitCallback getExitCallback() {
@@ -86,6 +98,10 @@ public class KnoxTunnelShell implements Command {
 
   public OutputStream getOutputStream() {
     return outputStream;
+  }
+  
+  public String getUsername() {
+    return username;
   }
 
   /**

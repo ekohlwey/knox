@@ -5,13 +5,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class TerminalAuditThread extends Thread {
 
-  private final ArrayBlockingQueue<AuditorWork> workQueue;
+  private final ArrayBlockingQueue<TerminalAuditWork> workQueue;
   private boolean stop;
   private final ReentrantLock stopLock = new ReentrantLock();
-  private final TerminalAuditor auditor;
+  private final TerminalActionAuditRecoder auditor;
 
-  public TerminalAuditThread(ArrayBlockingQueue<AuditorWork> workQueue,
-      TerminalAuditor auditor) {
+  public TerminalAuditThread(ArrayBlockingQueue<TerminalAuditWork> workQueue,
+      TerminalActionAuditRecoder auditor) {
     this.workQueue = workQueue;
     this.auditor = auditor;
     setDaemon(true);
@@ -21,7 +21,7 @@ public class TerminalAuditThread extends Thread {
   public void run() {
     boolean run = true;
     while (run) {
-      AuditorWork work;
+      TerminalAuditWork work;
       try {
         work = workQueue.take();
       } catch (InterruptedException e) {

@@ -31,12 +31,9 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
     };
   };
 
-  public static final String SSH_PORT = "port";
-  public static final String SSH_FINGERPRINT_LOCATION = "ssh-fingerprint-location";
-  public static final String KEYTAB_LOCATION = "keytab";
-  public static final String PROVIDER_PRINCIPAL = "kerberos-principal";
-  public static final String WORKERS = "workers";
   private SshServer sshd;
+
+  private ProviderConfigurer configurer;
 
   @Override
   public String getRole() {
@@ -55,51 +52,47 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
     // noop
   }
 
+  public SSHDeploymentContributor() {
+    this(new StandardProviderConfigurer());
+  }
+
+  public SSHDeploymentContributor(ProviderConfigurer configurer) {
+    this.configurer = configurer;
+  }
+
   @Override
   public void contributeProvider(DeploymentContext context, Provider provider)
       throws SSHServerException {
-    Map<String, String> providerParams = provider.getParams();
-    int port = Integer.parseInt(providerParams.get(SSH_PORT));
-    String sshLocation = providerParams.get(SSH_FINGERPRINT_LOCATION);
-    if (sshLocation == null) {
-      sshLocation = "/var/lib/knox/ssh.fingerprint";
-    }
-    String keytabLocation = providerParams.get(KEYTAB_LOCATION);
-    if (keytabLocation == null) {
-      keytabLocation = "/etc/knox/conf/knox.service.keytab";
-    }
-    String servicePrincipal = providerParams.get(PROVIDER_PRINCIPAL);
-    String workersString = providerParams.get(WORKERS);
-    int workers;
-    if (workersString != null) {
-      workers = Integer.parseInt(workersString);
-    } else {
-      workers = -1;
-    }
+    SSHConfiguration configuration = configurer.configure(provider);
 
     sshd = SshServer.setUpDefaultServer();
-    sshd.setPort(port);
-    sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(sshLocation));
+    sshd.setPort(configuration.getPort());
+    sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(configuration
+        .getSshFingerprintLocation()));
     List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(
         1);
     userAuthFactories.add(new KnoxUserAuthGSS.Factory());
     sshd.setUserAuthFactories(userAuthFactories);
 
     GSSAuthenticator authenticator = new GSSAuthenticator();
-    authenticator.setKeytabFile(keytabLocation);
+    authenticator.setKeytabFile(configuration.getKeytabLocation());
+    String servicePrincipal = configuration.getServicePrincipal();
     if (servicePrincipal != null) {
       authenticator.setServicePrincipalName(servicePrincipal);
     }
     sshd.setGSSAuthenticator(authenticator);
+    int workers = configuration.getWorkers();
     if (workers > 0) {
       sshd.setNioWorkers(workers);
     }
-    sshd.setShellFactory(new KnoxTunnelShellFactory());
+    sshd.setShellFactory(new KnoxTunnelShellFactory(provider.getTopology()
+        .getName()));
     try {
       sshd.start();
-      Runtime.getRuntime().addShutdownHook(shutdownHandler);
     } catch (IOException e) {
       throw new SSHServerException(e);
+    } finally {
+      Runtime.getRuntime().addShutdownHook(shutdownHandler);
     }
   }
 
