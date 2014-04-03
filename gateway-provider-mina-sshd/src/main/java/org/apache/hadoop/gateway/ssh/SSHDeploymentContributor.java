@@ -3,7 +3,6 @@ package org.apache.hadoop.gateway.ssh;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.hadoop.gateway.deploy.DeploymentContext;
 import org.apache.hadoop.gateway.deploy.ProviderDeploymentContributorBase;
