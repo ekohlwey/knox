@@ -527,9 +527,9 @@
                 <version>3.0.0.v201112011016</version>
             </dependency>
             <dependency>
-            	<groupId>org.apache.sshd</groupId>
-            	<artifactId>sshd-core</artifactId>
-            	<version>0.10.1</version>
+                <groupId>org.apache.sshd</groupId>
+                <artifactId>sshd-core</artifactId>
+                <version>0.10.1</version>
             </dependency>
             <!--
             <dependency>
@@ -824,17 +824,35 @@
               <groupId>org.apache.directory.server</groupId>
               <artifactId>apacheds-server-integ</artifactId>
               <version>2.0.0-M5</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>org.apache.directory.shared</groupId>
+                  <artifactId>shared-ldap-schema-data</artifactId>
+                </exclusion>
+              </exclusions>
             </dependency> 
             <dependency>
               <groupId>org.apache.directory.server</groupId>
               <artifactId>apacheds-core-integ</artifactId>
               <version>2.0.0-M5</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>org.apache.directory.shared</groupId>
+                  <artifactId>shared-ldap-schema-data</artifactId>
+                </exclusion>
+              </exclusions>
             </dependency> 
             <dependency>
               <groupId>org.apache.directory.server</groupId>
               <artifactId>apacheds-kerberos-test</artifactId>
               <type>test-jar</type>
               <version>2.0.0-M15</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>org.apache.directory.api</groupId>
+                  <artifactId>api-ldap-schema-data</artifactId>
+                </exclusion>
+              </exclusions>
             </dependency> 
             <dependency>
                 <groupId>org.apache.directory.server</groupId>
