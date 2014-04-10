@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.output.TeeOutputStream;
-import org.apache.directory.api.ldap.model.entry.DefaultEntry;
-import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.kerberos.client.KdcConfig;
 import org.apache.directory.kerberos.client.KdcConnection;
@@ -23,7 +21,6 @@ import org.apache.directory.server.core.annotations.ApplyLdifs;
 import org.apache.directory.server.core.annotations.ContextEntry;
 import org.apache.directory.server.core.annotations.CreateDS;
 import org.apache.directory.server.core.annotations.CreatePartition;
-import org.apache.directory.server.core.api.CoreSession;
 import org.apache.directory.server.core.integ.AbstractLdapTestUnit;
 import org.apache.directory.server.core.integ.FrameworkRunner;
 import org.apache.directory.server.core.kerberos.KeyDerivationInterceptor;
@@ -87,6 +84,35 @@ import org.junit.runner.RunWith;
         }    
     ))
 @ApplyLdifs({
+  
+    // client
+    "dn: uid=client,dc=example,dc=com",
+    "objectClass: top",
+    "objectClass: person",
+    "objectClass: inetOrgPerson",
+    "objectClass: krb5principal",
+    "objectClass: krb5kdcentry",
+    "cn: client",
+    "sn: client",
+    "uid: client",
+    "userPassword: secret",
+    "krb5PrincipalName: client@EXAMPLE.COM",
+    "krb5KeyVersionNumber: 0",
+  
+    // ssh
+    "dn: uid=ssh,dc=example,dc=com",
+    "objectClass: top",
+    "objectClass: person",
+    "objectClass: inetOrgPerson",
+    "objectClass: krb5principal",
+    "objectClass: krb5kdcentry",
+    "cn: SSH Service",
+    "sn: Service",
+    "uid: ssh",
+    "userPassword: secret",
+    "krb5PrincipalName: ssh/localhost@EXAMPLE.COM",
+    "krb5KeyVersionNumber: 0",
+  
     // krbtgt
     "dn: uid=krbtgt,dc=example,dc=com",
     "objectClass: top",
@@ -139,24 +165,23 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
     public static final String USERS_DN = "dc=example,dc=com";
     public static final String APP_HOST = "localhost";
     public static final Integer APP_PORT = 6091;
-    public static final String REALM = "EXAMPLE.COM";
+    private static String PASSWORD = "secret";
+    private static String SSH_UID = "ssh";
+    private static String SSH_PRINCIPAL = "ssh/localhost@EXAMPLE.COM";
+    private static String CLIENT_UID = "client";
+    private static String CLIENT_PRINCIPAL = "client@EXAMPLE.COM";
     
-    private static CoreSession session;
-    private static KdcConnection conn;
-    private static String userPassword = "secret";
-    private static String userUid = "josh";
-    private static String principalName = userUid + "@" + REALM;
     private static String serverPrincipal;
+    private static KdcConnection conn;
+    private static File clientKeytab;
+    private static File sshKeytab;
+    
+    @Rule
+    public TemporaryFolder testFolder = new TemporaryFolder();
 
     @Before
-    public void setup() throws Exception
-    {
+    public void setup() throws Throwable {
         kdcServer.setSearchBaseDn( USERS_DN );
-        if ( session == null )
-        {
-            session = kdcServer.getDirectoryService().getAdminSession();
-            createPrincipal( userUid, userPassword, principalName );
-        }
         
         if ( conn == null )
         {
@@ -173,24 +198,18 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
             serverPrincipal = KerberosTestUtils.fixServicePrincipalName( "ldap/localhost@EXAMPLE.COM", new Dn(
                 "uid=ldap,dc=example,dc=com" ), getLdapServer() );
         }
+        
+        // Generate keytabs
+        KeytabGenerator keyGen = new KeytabGenerator();
+        clientKeytab = keyGen.generateKeytab(testFolder.newFile("client.keytab"), CLIENT_PRINCIPAL, PASSWORD);
+        sshKeytab = keyGen.generateKeytab(testFolder.newFile("ssh.keytab"), SSH_PRINCIPAL, PASSWORD);
     }
     
-    @Rule
-    public TemporaryFolder testFolder = new TemporaryFolder();
-    
-    private class TestProvider extends Provider {
+    private class KeytabGenerator{
       
-      @Override
-      public Topology getTopology() {
-        Topology topology = new Topology();
-        topology.setName("topology");
-        return topology;
-      }
-
-      public File generateKeytab(File keytabFile) throws Throwable {
+      public File generateKeytab(File keytabFile, String principalName, String userPassword) throws Throwable {
         
         Keytab keytab = Keytab.getInstance(); 
-        
         KerberosTime timeStamp = new KerberosTime(KerberosUtils.UTC_DATE_FORMAT.parse("20070217235745Z"));
 
         Map<EncryptionType, EncryptionKey> keys = KerberosKeyFactory
@@ -209,19 +228,22 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
         
         keytab.write(keytabFile);
         
-        System.out.println("Wrote keytab file to " + keytabFile.getAbsolutePath());
-        
         return keytabFile;
+      }
+    }
+    
+
+    
+    private class TestProvider extends Provider {
+      @Override
+      public Topology getTopology() {
+        Topology topology = new Topology();
+        topology.setName("topology");
+        return topology;
       }
     }
 
     private class SSHProviderConfigurer implements ProviderConfigurer {
-      
-      private File keytabFile;
-
-      public SSHProviderConfigurer() throws Throwable{
-        keytabFile = testFolder.newFile(userUid + ".keytab");
-      }
 
       @Override
       public SSHConfiguration configure(Provider provider) {
@@ -230,22 +252,19 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
           return new SSHConfiguration(
               APP_PORT, 
               testFolder.newFile().getAbsolutePath(), 
-              keytabProv.generateKeytab(keytabFile).getAbsolutePath(),
-              principalName, 0);
+              sshKeytab.getAbsolutePath(),
+              SSH_PRINCIPAL, 0);
         } catch (Throwable e) {
           throw new RuntimeException(e);
         }
       }
-      
-      public File getKeytabFile() {
-        return keytabFile;
-      }
     }
     
     public class Kiniter {
-      public void kinit(File keytabFile) throws Throwable {
+      public void kinit(String princinpal, String password) throws Throwable {
 
-        TgTicket ticket = conn.getTgt(principalName, userPassword);
+        // There is more that needs to happen here.
+        TgTicket ticket = conn.getTgt(princinpal, password);
         
         Assert.assertNotNull("Failed to aquire ticket.", ticket);
       }
@@ -267,8 +286,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
       
       System.out.println("KDC Server info: " + kdcServer.toString());
       
-      File keytabFile = configurer.getKeytabFile();
-      kiniter.kinit(keytabFile);
+      kiniter.kinit(CLIENT_PRINCIPAL, PASSWORD);
       
 //      while(true) { ; }
       
@@ -279,7 +297,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
       Assert.assertTrue("Could not connect to server", connFuture.isConnected());
       
       ClientSession session = connFuture.getSession();
-      AuthFuture authfuture = session.authPassword(userUid, userPassword).await();
+      AuthFuture authfuture = session.authPassword(CLIENT_UID, PASSWORD).await();
       Assert.assertTrue("Failed to authenticate to server: " + authfuture.getException().toString(), authfuture.isSuccess());
       
       ClientChannel channel = session.createChannel(ClientChannel.CHANNEL_SHELL);
@@ -304,21 +322,6 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
       client.stop();
       
       Assert.assertTrue("Did not receive output", out.toByteArray().length > 0);
-    }
-    
-    private String createPrincipal( String uid, String userPassword, String principalName ) throws Exception {
-        Entry entry = new DefaultEntry( session.getDirectoryService().getSchemaManager() );
-        entry.setDn( "uid=" + uid + "," + USERS_DN );
-        entry.add( "objectClass", "top", "person", "inetOrgPerson", "krb5principal", "krb5kdcentry" );
-        entry.add( "cn", uid );
-        entry.add( "sn", uid );
-        entry.add( "uid", uid );
-        entry.add( "userPassword", userPassword );
-        entry.add( "krb5PrincipalName", principalName );
-        entry.add( "krb5KeyVersionNumber", "0" );
-        session.add( entry );
-        
-        return entry.getDn().getName();
     }
 
 }
