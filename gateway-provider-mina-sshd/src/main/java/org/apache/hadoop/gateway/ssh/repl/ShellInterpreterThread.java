@@ -3,18 +3,13 @@ package org.apache.hadoop.gateway.ssh.repl;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
 import org.apache.hadoop.gateway.ssh.commands.UnsupportedCommandAction;
-import org.apache.sshd.common.util.NoCloseInputStream;
 import org.apache.sshd.common.util.NoCloseOutputStream;
-
-import com.google.common.io.LineReader;
 
 public class ShellInterpreterThread extends Thread implements Closeable {
 
@@ -34,25 +29,19 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   public void run() {
     boolean run = true;
     int result = 0;
+
+    // New lines are not handled correctly with printstream
+    PrintStream consolePrinter = new PrintStream(new NoCloseOutputStream(knoxShell.getOutputStream()));
+    BufferedReader reader = knoxShell.getReader(); // reader cannot be closed in while loop
+    
     while (run) {
-      PrintStream consolePrinter = new PrintStream(new NoCloseOutputStream(knoxShell.getOutputStream()));
       consolePrinter.printf("%s@%s > ", knoxShell.getUsername(), knoxShell.getTopologyName());
-      BufferedReader reader = knoxShell.getReader();
       String line = null;
       try {
         line = reader.readLine();
       } catch (IOException e) {
         exitHandler.failure(e);
         return;
-      } finally {
-        if (reader != null) {
-          try {
-            reader.close();
-          } catch (IOException e) {
-            exitHandler.failure(e);
-            return;
-          }
-        }
       }
       if (line == null) {
         run = false;
@@ -83,6 +72,13 @@ public class ShellInterpreterThread extends Thread implements Closeable {
       stopLock.lock();
       run = !stop;
       stopLock.unlock();
+    }
+    try {
+      consolePrinter.close();
+      reader.close();
+    } catch (IOException e) {
+      exitHandler.failure(e);
+      return;
     }
     exitHandler.normalExit(result);
   }

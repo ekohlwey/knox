@@ -58,11 +58,17 @@
       <artifactId>apacheds-kerberos-test</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
-
+    </dependency> 
+    
     <dependency>
       <groupId>org.easymock</groupId>
       <artifactId>easymock</artifactId>
+      <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.directory.server</groupId>
+      <artifactId>kerberos-client</artifactId>
       <scope>test</scope>
     </dependency>
 
