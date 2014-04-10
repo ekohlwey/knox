@@ -156,9 +156,9 @@ import org.junit.runner.RunWith;
     "krb5KeyVersionNumber: 0"
 })
 /**
- * KDC connection tests
+ * SSH Deployment Contributor Test
  * 
- * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
+ * Setting up LDAP, KDC, SSH Provider, and client to test the "help" command
  */
 public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
 {
