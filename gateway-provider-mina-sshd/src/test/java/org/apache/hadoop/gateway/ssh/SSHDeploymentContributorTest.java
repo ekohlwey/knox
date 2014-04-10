@@ -1,4 +1,6 @@
 package org.apache.hadoop.gateway.ssh;
+import static org.easymock.EasyMock.createMock;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.OutputStream;
@@ -46,6 +48,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(FrameworkRunner.class)
 @CreateDS(name = "KdcConnectionTest-class", enableChangeLog = false,
@@ -160,8 +164,10 @@ import org.junit.runner.RunWith;
  * 
  * Setting up LDAP, KDC, SSH Provider, and client to test the "help" command
  */
-public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
-{
+public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
+  
+  private static final Logger LOG = LoggerFactory.getLogger(SSHDeploymentContributorTest.class);
+  
     public static final String USERS_DN = "dc=example,dc=com";
     public static final String APP_HOST = "localhost";
     public static final Integer APP_PORT = 6091;
@@ -200,7 +206,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
         }
         
         // Generate keytabs
-        KeytabGenerator keyGen = new KeytabGenerator();
+        KeytabGenerator keyGen = createMock(KeytabGenerator.class);
         clientKeytab = keyGen.generateKeytab(testFolder.newFile("client.keytab"), CLIENT_PRINCIPAL, PASSWORD);
         sshKeytab = keyGen.generateKeytab(testFolder.newFile("ssh.keytab"), SSH_PRINCIPAL, PASSWORD);
     }
@@ -247,7 +253,6 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
 
       @Override
       public SSHConfiguration configure(Provider provider) {
-        TestProvider keytabProv = (TestProvider) provider;
         try {
           return new SSHConfiguration(
               APP_PORT, 
@@ -273,8 +278,8 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
     @Test
     public void testConnection() throws Throwable {
 
-      Kiniter kiniter = new Kiniter();
-      SSHProviderConfigurer configurer = new SSHProviderConfigurer();
+      Kiniter kiniter = createMock(Kiniter.class);
+      SSHProviderConfigurer configurer = createMock(SSHProviderConfigurer.class);
 
       SecurityUtils.setRegisterBouncyCastle(false); // must disable BC to get ciphers to work.
       
@@ -284,7 +289,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit
       // start server
       deploymentContrib.contributeProvider(null, new TestProvider());
       
-      System.out.println("KDC Server info: " + kdcServer.toString());
+      LOG.info("KDC Server info: " + kdcServer.toString());
       
       kiniter.kinit(CLIENT_PRINCIPAL, PASSWORD);
       
