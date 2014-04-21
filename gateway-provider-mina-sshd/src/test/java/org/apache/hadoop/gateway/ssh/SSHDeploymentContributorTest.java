@@ -1,20 +1,29 @@
 package org.apache.hadoop.gateway.ssh;
-import static org.easymock.EasyMock.createMock;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
 
 import org.apache.commons.io.output.TeeOutputStream;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.kerberos.client.KdcConfig;
 import org.apache.directory.kerberos.client.KdcConnection;
+import org.apache.directory.kerberos.client.ServiceTicket;
 import org.apache.directory.kerberos.client.TgTicket;
+import org.apache.directory.kerberos.credentials.cache.Credentials;
+import org.apache.directory.kerberos.credentials.cache.CredentialsCache;
 import org.apache.directory.server.annotations.CreateChngPwdServer;
 import org.apache.directory.server.annotations.CreateKdcServer;
 import org.apache.directory.server.annotations.CreateLdapServer;
@@ -33,14 +42,20 @@ import org.apache.directory.server.kerberos.shared.keytab.KeytabEntry;
 import org.apache.directory.shared.kerberos.KerberosTime;
 import org.apache.directory.shared.kerberos.KerberosUtils;
 import org.apache.directory.shared.kerberos.codec.types.EncryptionType;
+import org.apache.directory.shared.kerberos.codec.types.PrincipalNameType;
 import org.apache.directory.shared.kerberos.components.EncryptionKey;
+import org.apache.directory.shared.kerberos.components.PrincipalName;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Topology;
 import org.apache.sshd.ClientChannel;
 import org.apache.sshd.ClientSession;
 import org.apache.sshd.SshClient;
+import org.apache.sshd.client.UserAuth;
 import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
+import org.apache.sshd.client.kex.DHG1;
+import org.apache.sshd.common.KeyExchange;
+import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.common.util.SecurityUtils;
 import org.junit.Assert;
 import org.junit.Before;
@@ -50,6 +65,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 @RunWith(FrameworkRunner.class)
 @CreateDS(name = "KdcConnectionTest-class", enableChangeLog = false,
@@ -166,7 +182,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
   
-  private static final Logger LOG = LoggerFactory.getLogger(SSHDeploymentContributorTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SSHDeploymentContributorTest.class);
   
     public static final String USERS_DN = "dc=example,dc=com";
     public static final String APP_HOST = "localhost";
@@ -206,7 +222,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
         }
         
         // Generate keytabs
-        KeytabGenerator keyGen = createMock(KeytabGenerator.class);
+        KeytabGenerator keyGen = new KeytabGenerator();
         clientKeytab = keyGen.generateKeytab(testFolder.newFile("client.keytab"), CLIENT_PRINCIPAL, PASSWORD);
         sshKeytab = keyGen.generateKeytab(testFolder.newFile("ssh.keytab"), SSH_PRINCIPAL, PASSWORD);
     }
@@ -220,12 +236,14 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
 
         Map<EncryptionType, EncryptionKey> keys = KerberosKeyFactory
             .getKerberosKeys(principalName, userPassword);
+        
+        System.out.println("encryption key: " + keys.get(EncryptionType.DES_CBC_MD5).getKeyValue());
 
         KeytabEntry keytabEntry = new KeytabEntry(
             principalName, 
             1L,
             timeStamp, 
-            (byte) 1, 
+            (byte) 0,
             keys.get(EncryptionType.DES_CBC_MD5));
         
         List<KeytabEntry> entry = Arrays.asList(keytabEntry);
@@ -266,20 +284,99 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
     }
     
     public class Kiniter {
-      public void kinit(String princinpal, String password) throws Throwable {
-
-        // There is more that needs to happen here.
-        TgTicket ticket = conn.getTgt(princinpal, password);
+      public File kinit(String principal, String password) throws Throwable {
         
-        Assert.assertNotNull("Failed to aquire ticket.", ticket);
+        File cCacheFile = testFolder.newFile("ccache");
+        
+        // Obtain Ticket Granting Ticket
+        TgTicket tgt = conn.getTgt(principal, password);
+        
+        CredentialsCache credCache = new CredentialsCache();
+        
+        PrincipalName princ = new PrincipalName(principal, PrincipalNameType.KRB_NT_PRINCIPAL);
+        princ.setRealm(tgt.getRealm());
+        credCache.setPrimaryPrincipalName(princ);
+        
+        Credentials cred = new Credentials(tgt);
+        credCache.addCredentials(cred);
+        
+        // Obtain Service Ticket
+        ServiceTicket serviceTicket = conn.getServiceTicket(principal, password, SSH_PRINCIPAL);
+       
+        PrincipalName servicePrinc = new PrincipalName(principal, PrincipalNameType.KRB_NT_PRINCIPAL);
+        servicePrinc.setRealm(tgt.getRealm());
+        
+        Credentials servCred = new Credentials(serviceTicket, servicePrinc);
+        credCache.addCredentials(servCred);
+        
+        CredentialsCache.store(cCacheFile, credCache);
+        
+        return cCacheFile;
       }
+    }
+    
+    class SSHPrivledgedAction implements PrivilegedAction {
+      
+      public SSHPrivledgedAction() { }
+
+      @Override
+      public Object run() {
+        
+        try {
+          SshClient client = SshClient.setUpDefaultClient();
+          
+          List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(1);
+          userAuthFactories.add(new UserAuthGSS.Factory());
+          
+          client.setUserAuthFactories(userAuthFactories);
+          
+          client.setKeyExchangeFactories(Arrays.<NamedFactory<KeyExchange>>asList(
+                    new DHG1.Factory()));
+          client.start();
+          
+          ConnectFuture connFuture = client.connect(CLIENT_UID, APP_HOST, APP_PORT).await();
+          Assert.assertTrue("Could not connect to server", connFuture.isConnected());
+          
+          ClientSession session = connFuture.getSession();
+          AuthFuture authfuture = session.auth().await();
+          Assert.assertTrue("Failed to authenticate to server: " + authfuture.getException(), authfuture.isSuccess());
+          
+          ClientChannel channel = session.createChannel(ClientChannel.CHANNEL_SHELL);
+    
+          ByteArrayOutputStream sent = new ByteArrayOutputStream();
+          PipedOutputStream pipedIn = new PipedOutputStream();
+          channel.setIn(new PipedInputStream(pipedIn));
+          OutputStream teeOut = new TeeOutputStream(sent, pipedIn);
+          ByteArrayOutputStream out = new ByteArrayOutputStream();
+          ByteArrayOutputStream err = new ByteArrayOutputStream();
+          channel.setOut(out);
+          channel.setErr(err);
+          channel.open();
+    
+          teeOut.write("help\n".getBytes());
+          teeOut.flush();
+          teeOut.close();
+    
+          channel.waitFor(ClientChannel.CLOSED, 0); // technically this will never work, we need an exit action :)
+    
+          channel.close(false);
+          client.stop();
+        
+          Assert.assertTrue("Did not receive output", out.toByteArray().length > 0);
+        } catch (Exception e) {
+          throw new RuntimeException("Failed to ssh into server.", e);
+        }
+        
+        return null;
+      }
+      
     }
     
     @Test
     public void testConnection() throws Throwable {
 
-      Kiniter kiniter = createMock(Kiniter.class);
-      SSHProviderConfigurer configurer = createMock(SSHProviderConfigurer.class);
+      Kiniter kiniter = new Kiniter();
+      SSHProviderConfigurer configurer = new SSHProviderConfigurer();
 
       SecurityUtils.setRegisterBouncyCastle(false); // must disable BC to get ciphers to work.
       
@@ -291,42 +388,36 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
       
       LOG.info("KDC Server info: " + kdcServer.toString());
       
-      kiniter.kinit(CLIENT_PRINCIPAL, PASSWORD);
+      File ccache = kiniter.kinit(CLIENT_PRINCIPAL, PASSWORD);
       
-//      while(true) { ; }
+      // Create new loginConf
+      File loginConf = testFolder.newFile("login.conf");
       
-      SshClient client = SshClient.setUpDefaultClient();
-      client.start();
+      String content = "client {" + 
+        " com.sun.security.auth.module.Krb5LoginModule required" + 
+        " useTicketCache=true" +
+        " ticketCache=\"" + ccache.getAbsolutePath() + "\"" +   
+        " debug=true;" + 
+      " };";
       
-      ConnectFuture connFuture = client.connect(APP_HOST, APP_PORT).await();
-      Assert.assertTrue("Could not connect to server", connFuture.isConnected());
+      FileWriter fw = new FileWriter(loginConf.getAbsoluteFile());
+      BufferedWriter bw = new BufferedWriter(fw);
+      bw.write(content);
+      bw.close();
+      fw.close();
       
-      ClientSession session = connFuture.getSession();
-      AuthFuture authfuture = session.authPassword(CLIENT_UID, PASSWORD).await();
-      Assert.assertTrue("Failed to authenticate to server: " + authfuture.getException().toString(), authfuture.isSuccess());
+      System.out.println("Wrote login.conf[" + content + "] to file[" + loginConf.getAbsolutePath() + "]");
       
-      ClientChannel channel = session.createChannel(ClientChannel.CHANNEL_SHELL);
+      System.setProperty("java.security.auth.login.config", loginConf.getAbsolutePath());
+      
+      System.out.println("sendCommand");
+      
+      LoginContext lc = new LoginContext("client");
 
-      ByteArrayOutputStream sent = new ByteArrayOutputStream();
-      PipedOutputStream pipedIn = new PipedOutputStream();
-      channel.setIn(new PipedInputStream(pipedIn));
-      OutputStream teeOut = new TeeOutputStream(sent, pipedIn);
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      ByteArrayOutputStream err = new ByteArrayOutputStream();
-      channel.setOut(out);
-      channel.setErr(err);
-      channel.open();
+      lc.login();
 
-      teeOut.write("help\n".getBytes());
-      teeOut.flush();
-      teeOut.close();
+      Subject.doAs(lc.getSubject(), new SSHPrivledgedAction());
 
-      channel.waitFor(ClientChannel.CLOSED, 0); // technically this will never work, we need an exit action :)
-
-      channel.close(false);
-      client.stop();
-      
-      Assert.assertTrue("Did not receive output", out.toByteArray().length > 0);
     }
 
 }

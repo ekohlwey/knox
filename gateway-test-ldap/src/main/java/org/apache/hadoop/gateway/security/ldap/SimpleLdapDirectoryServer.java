@@ -51,7 +51,7 @@ public class SimpleLdapDirectoryServer {
     service = factory.getDirectoryService();
 
     Partition partition = factory.getPartitionFactory().createPartition(
-        service.getSchemaManager(), "users", rootDn, 500, service.getInstanceLayout().getInstanceDirectory() );
+        service.getSchemaManager(), service.getDnFactory(), "users", rootDn, 500, service.getInstanceLayout().getInstanceDirectory() );
     service.addPartition( partition );
 
     CoreSession session = service.getAdminSession();
