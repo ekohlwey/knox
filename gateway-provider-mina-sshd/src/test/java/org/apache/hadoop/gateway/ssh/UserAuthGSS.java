@@ -10,12 +10,9 @@ import org.apache.sshd.common.util.Buffer;
 
 public class UserAuthGSS implements UserAuth {
 
-  private static final int SSH_MSG_USERAUTH_GSSAPI_RESPONSE = 60;
-  private static final int SSH_MSG_USERAUTH_GSSAPI_TOKEN = 61;
-  private static final int SSH_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE = 63;
-  private static final int SSH_MSG_USERAUTH_GSSAPI_ERROR = 64;
-  private static final int SSH_MSG_USERAUTH_GSSAPI_ERRTOK = 65;
-  private static final int SSH_MSG_USERAUTH_GSSAPI_MIC = 66;
+  private static final byte SSH_MSG_USERAUTH_GSSAPI_TOKEN = 61;
+  private static final byte SSH_MSG_USERAUTH_GSSAPI_ERROR = 64;
+  private static final byte SSH_MSG_USERAUTH_GSSAPI_ERRTOK = 65;
 
   private static final byte[][] supported_oid = {
   { (byte) 0x6, (byte) 0x9, (byte) 0x2a, (byte) 0x86, (byte) 0x48, (byte) 0x86,
@@ -68,7 +65,7 @@ public class UserAuthGSS implements UserAuth {
     session.writePacket(buf);
 
     String method = null;
-    int msg;
+    byte msg;
     while (true) {
       msg = buf.getByte(); // I don't think this is the right way to pull the message out of the buffer. 
                            // Am I allowed to read right away like this?
@@ -77,7 +74,7 @@ public class UserAuthGSS implements UserAuth {
         return false;
       }
 
-      if (msg == SSH_MSG_USERAUTH_GSSAPI_RESPONSE) {
+      if (msg == SshConstants.SSH_MSG_USERAUTH_INFO_REQUEST) {
         buf.getInt();
         buf.getByte();
         buf.getByte();
