@@ -19,8 +19,10 @@ import java.util.Set;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 
+import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.apache.directory.api.ldap.model.name.Dn;
+import org.apache.directory.kerberos.client.ChangePasswordResult;
 import org.apache.directory.kerberos.client.KdcConfig;
 import org.apache.directory.kerberos.client.KdcConnection;
 import org.apache.directory.kerberos.client.ServiceTicket;
@@ -279,43 +281,60 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
         }
       }
       
-      public KinitTickets kinit(String principal, String password) throws Throwable {
+      public Map<String, File> kinit() throws Throwable {
+
+        File serverCacheFile = testFolder.newFile("server-ccache");
         
-        File cCacheFile = testFolder.newFile("ccache");
+        // Set up server cache
+        CredentialsCache serverCredCache = new CredentialsCache();
         
-        // Obtain Ticket Granting Ticket
-        TgTicket tgt = conn.getTgt(principal, password);
+        // Obtain Ticket Granting Ticket for server
+        TgTicket serverTgt = conn.getTgt(SSH_PRINCIPAL, PASSWORD);
+        PrincipalName serverPrinc = new PrincipalName(SSH_PRINCIPAL, PrincipalNameType.KRB_NT_PRINCIPAL);
+        serverPrinc.setRealm(serverTgt.getRealm());
+        serverCredCache.setPrimaryPrincipalName(serverPrinc);
+        serverCredCache.addCredentials(new Credentials(serverTgt));
         
-        CredentialsCache credCache = new CredentialsCache();
+        CredentialsCache.store(serverCacheFile, serverCredCache); // put the server creds in a cache file
         
-        PrincipalName princ = new PrincipalName(principal, PrincipalNameType.KRB_NT_PRINCIPAL);
-        princ.setRealm(tgt.getRealm());
-        credCache.setPrimaryPrincipalName(princ);
+        CredentialsCache clientCredCache = new CredentialsCache();
         
-        Credentials cred = new Credentials(tgt);
-        credCache.addCredentials(cred);
+        // Set up client cache
+        File clientCacheFile = testFolder.newFile("client-ccache");
         
-        // Obtain Service Ticket
-        ServiceTicket serviceTicket = conn.getServiceTicket(principal, password, SSH_PRINCIPAL);
-       
-        PrincipalName servicePrinc = new PrincipalName(principal, PrincipalNameType.KRB_NT_PRINCIPAL);
-        servicePrinc.setRealm(tgt.getRealm());
+        // Obtain Ticket Granting Ticket for client
+        TgTicket clientTgt = conn.getTgt(CLIENT_PRINCIPAL, PASSWORD);
+        PrincipalName clientprinc = new PrincipalName(CLIENT_PRINCIPAL, PrincipalNameType.KRB_NT_PRINCIPAL);
+        clientprinc.setRealm(clientTgt.getRealm());
+        clientCredCache.setPrimaryPrincipalName(clientprinc);
+        clientCredCache.addCredentials(new Credentials(clientTgt));
         
-        Credentials servCred = new Credentials(serviceTicket, servicePrinc);
-        credCache.addCredentials(servCred);
+        // Obtain Service Ticket for client
+        ServiceTicket serviceTicket = conn.getServiceTicket(CLIENT_PRINCIPAL, PASSWORD, SSH_PRINCIPAL);
+        PrincipalName servicePrinc = new PrincipalName(CLIENT_PRINCIPAL, PrincipalNameType.KRB_NT_PRINCIPAL);
+        servicePrinc.setRealm(clientTgt.getRealm());
         
-        CredentialsCache.store(cCacheFile, credCache);
+        clientCredCache.addCredentials(new Credentials(serviceTicket, servicePrinc));
         
-        return new KinitTickets(cCacheFile, tgt, serviceTicket);
+        CredentialsCache.store(clientCacheFile, clientCredCache); // put the client creds in a cache file
+        
+        Map<String, File> results = new HashedMap();
+        
+        results.put(SSH_PRINCIPAL, serverCacheFile);
+        results.put(CLIENT_PRINCIPAL, clientCacheFile);
+        
+        return results;
       }
     }
     
-    class SSHPrivledgedAction implements PrivilegedAction {
+    class SSHClientAction implements PrivilegedAction {
 
       @Override
       public Object run() {
         
         try {
+          
+          // setup client
           SshClient client = SshClient.setUpDefaultClient();
           
           List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(1);
@@ -363,21 +382,38 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
       
     }
     
+    class SSHServerAction implements PrivilegedAction {
+
+      @Override
+      public Object run() {
+        
+        System.setProperty("javax.security.auth.useSubjectCredsOnly", "true");
+        
+        SSHProviderConfigurer configurer = new SSHProviderConfigurer();
+        
+        SSHDeploymentContributor deploymentContrib = new SSHDeploymentContributor(
+            configurer);
+
+        // start server
+        deploymentContrib.contributeProvider(null, new TestProvider());
+        
+        
+//        while (true) { ; }
+        
+        return null;
+      }
+    }
+    
     @Test
     public void testConnection() throws Throwable {
 
       Kiniter kiniter = new Kiniter();
-      SSHProviderConfigurer configurer = new SSHProviderConfigurer();
       
-      SSHDeploymentContributor deploymentContrib = new SSHDeploymentContributor(
-          configurer);
-
-      // start server
-      deploymentContrib.contributeProvider(null, new TestProvider());
+      LOG.info("KDC Server info {}", kdcServer.toString());
       
-      LOG.info("KDC Server info: " + kdcServer.toString());
+      Map<String, File> caches = kiniter.kinit();
       
-      KinitTickets tickets = kiniter.kinit(CLIENT_PRINCIPAL, PASSWORD);
+      LOG.info("Cache file {}", caches);
 
       // Create new loginConf
       File loginConf = testFolder.newFile("login.conf");
@@ -385,12 +421,15 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
       String content = "client {" + 
         " com.sun.security.auth.module.Krb5LoginModule required" + 
         " useTicketCache=true" +
-        " ticketCache=\"" + tickets.cCacheFile.getAbsolutePath() + "\"" +
-//        " storeKey=true" + 
-//        " useKeyTab=true" + 
-//        " principal=client" + 
-//        " keyTab=\"" + Resources.getResource("client.keytab").getFile() + "\"" +  
+        " ticketCache=\"" + caches.get(CLIENT_PRINCIPAL) + "\"" +
         " debug=true;" + 
+      " };\n";
+      
+      content += "server {" + 
+      " com.sun.security.auth.module.Krb5LoginModule required" + 
+      " useTicketCache=true" +
+      " ticketCache=\"" + caches.get(SSH_PRINCIPAL) + "\"" +
+      " debug=true;" + 
       " };";
       
       FileWriter fw = new FileWriter(loginConf.getAbsoluteFile());
@@ -399,20 +438,21 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
       bw.close();
       fw.close();
       
-      System.out.println("Wrote login.conf[" + content + "] to file[" + loginConf.getAbsolutePath() + "]");
+      LOG.info("Wrote login.conf {} to file {}", content, loginConf.getAbsoluteFile());
       
       System.setProperty("java.security.auth.login.config", loginConf.getAbsolutePath());
       System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
       System.setProperty("java.security.krb5.kdc","localhost:6089");
 //      System.setProperty("java.security.krb5.conf", Resources.getResource("krb5.conf").getFile() );
       
-      System.out.println("sendCommand");
-      
-      LoginContext lc = new LoginContext("client");
 
+      LoginContext lc = new LoginContext("server");
       lc.login();
-
-      Subject.doAs(lc.getSubject(), new SSHPrivledgedAction());
+      Subject.doAs(lc.getSubject(), new SSHServerAction());
+      
+      lc = new LoginContext("client");
+      lc.login();
+      Subject.doAs(lc.getSubject(), new SSHClientAction());
 
     }
 

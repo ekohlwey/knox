@@ -79,6 +79,10 @@ public class UserAuthGSS implements UserAuth {
       buffer.putString(oidBytes);
 
       session.writePacket(buffer);
+      
+      if(log.isDebugEnabled()){
+        log.debug("Sent user auth request with oid {}", KRB5_MECH);
+      }
 
       return Boolean.TRUE;
     } else { // handle next commands
@@ -93,7 +97,7 @@ public class UserAuthGSS implements UserAuth {
 
         if (!KRB5_MECH.equals(new Oid(oid))) {
           if(log.isDebugEnabled()){
-            log.debug("Oid not supported: " + new Oid(oid));
+            log.debug("Oid {} not supported.", new Oid(oid));
           }
           return Boolean.FALSE; // oid not supported
         }
@@ -120,6 +124,11 @@ public class UserAuthGSS implements UserAuth {
         buffer = session.createBuffer(SSH_MSG_USERAUTH_GSSAPI_TOKEN);
         buffer.putBytes(out);
         session.writePacket(buffer);
+        
+        if(log.isDebugEnabled()){
+          log.debug("Created context and sent initial token");
+        }
+        
         return Boolean.TRUE;
       } else if (cmd == SshConstants.SSH_MSG_USERAUTH_SUCCESS) {
         return Boolean.TRUE;
@@ -129,7 +138,7 @@ public class UserAuthGSS implements UserAuth {
   
           if(log.isDebugEnabled()){
             AbstractSession abSession = ((AbstractSession) session);
-            log.debug("Session id: " + abSession.getIoSession().getId());
+            log.debug("Sending MIC with session id {}", abSession.getIoSession().getId());
           }
           
           // Send MIC TODO: header in wrong format must use SessionId
@@ -148,9 +157,13 @@ public class UserAuthGSS implements UserAuth {
        
           return Boolean.TRUE;
         } else {
-          
           // Not established - new token to process
           byte[] tok = buffer.getBytes();
+          
+          if(log.isDebugEnabled()){
+            log.debug("Processing token of size {}", tok.length);
+          }
+          
           byte[] out = context.initSecContext(tok, 0, tok.length);
           boolean established = context.isEstablished();
   
