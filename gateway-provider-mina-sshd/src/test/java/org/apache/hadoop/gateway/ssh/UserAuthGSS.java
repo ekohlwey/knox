@@ -6,246 +6,191 @@ import org.apache.sshd.ClientSession;
 import org.apache.sshd.client.UserAuth;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.common.SshConstants;
+import org.apache.sshd.common.session.AbstractSession;
 import org.apache.sshd.common.util.Buffer;
+import org.ietf.jgss.GSSContext;
+import org.ietf.jgss.GSSException;
+import org.ietf.jgss.GSSManager;
+import org.ietf.jgss.GSSName;
+import org.ietf.jgss.MessageProp;
+import org.ietf.jgss.Oid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UserAuthGSS implements UserAuth {
-
-  private static final byte SSH_MSG_USERAUTH_GSSAPI_TOKEN = 61;
-  private static final byte SSH_MSG_USERAUTH_GSSAPI_ERROR = 64;
-  private static final byte SSH_MSG_USERAUTH_GSSAPI_ERRTOK = 65;
-
-  private static final byte[][] supported_oid = {
-  { (byte) 0x6, (byte) 0x9, (byte) 0x2a, (byte) 0x86, (byte) 0x48, (byte) 0x86,
-      (byte) 0xf7, (byte) 0x12, (byte) 0x1, (byte) 0x2, (byte) 0x2 } }; // OID 1.2.840.113554.1.2.2 in DER
-
-  private static final String[] supported_method = { "gssapi-with-mic.krb5" };
-
+  
   public static class Factory implements NamedFactory<UserAuth> {
     @Override
     public UserAuth create() {
       return new UserAuthGSS();
     }
-
     @Override
     public String getName() {
       return "gssapi-with-mic";
     }
   }
+  
+  private final Logger log = LoggerFactory.getLogger(getClass());
+  
+  // TODO: put in SSHConstants file
+  public static final byte SSH_MSG_USERAUTH_GSSAPI_RESPONSE = 60;
+  public static final byte SSH_MSG_USERAUTH_GSSAPI_TOKEN = 61;
+  public static final byte SSH_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE = 63;
+  public static final byte SSH_MSG_USERAUTH_GSSAPI_ERROR = 64;
+  public static final byte SSH_MSG_USERAUTH_GSSAPI_ERRTOK = 65;
+  public static final byte SSH_MSG_USERAUTH_GSSAPI_MIC = 66;
+  
+  public static final Oid KRB5_MECH = createOID("1.2.840.113554.1.2.2");
+  public static final Oid KRB5_NT_PRINCIPAL = createOID("1.2.840.113554.1.2.2.1");
 
   private ClientSession session;
-  private Buffer buf;
+  
+  private byte[] username;
+  private byte[] serviceName = "ssh-connection".getBytes();
+  private byte[] gssApi = "gssapi-with-mic".getBytes();
+
+  private GSSContext context;
+
+  public UserAuthGSS() { }
 
   @Override
   public void init(ClientSession session, String service,
       List<Object> identities) throws Exception {
     this.session = session;
-    
+    if(session.getUsername() != null) {
+      this.username = session.getUsername().getBytes();
+    } else {
+      throw new NullPointerException("Username cannot be null for client UserAuth");
+    }
   }
 
   @Override
   public boolean process(Buffer buffer) throws Exception {
 
-    byte[] _username = str2byte(session.getUsername());
+    // Handle preliminary messages
+    if (buffer == null) { // send UserAuth request
+      buffer = session.createBuffer((byte) SshConstants.SSH_MSG_USERAUTH_REQUEST);
+      buffer.putString(username);
+      buffer.putString(serviceName);
+      buffer.putString(gssApi);
 
-    // byte SSH_MSG_USERAUTH_REQUEST(50)
-    // string user name(in ISO-10646 UTF-8 encoding)
-    // string service name(in US-ASCII)
-    // string "gssapi"(US-ASCII)
-    // uint32 n, the number of OIDs client supports
-    // string[n] mechanism OIDS
-    buf = session.createBuffer((byte) SshConstants.SSH_MSG_USERAUTH_REQUEST);
-    buf.putString(_username);
-    buf.putString(str2byte("ssh-connection"));
-    buf.putString(str2byte("gssapi-with-mic"));
-    buf.putInt(supported_oid.length);
-    for (int i = 0; i < supported_oid.length; i++) {
-      buf.putString(supported_oid[i]);
-    }
+      byte[] oidBytes = KRB5_MECH.getDER();
+      buffer.putInt(oidBytes.length);
+      buffer.putString(oidBytes);
 
-    session.writePacket(buf);
+      session.writePacket(buffer);
 
-    String method = null;
-    byte msg;
-    while (true) {
-      msg = buf.getByte(); // I don't think this is the right way to pull the message out of the buffer. 
-                           // Am I allowed to read right away like this?
+      return Boolean.TRUE;
+    } else { // handle next commands
+      byte cmd = buffer.getByte();
 
-      if (msg == SshConstants.SSH_MSG_USERAUTH_FAILURE) {
-        return false;
-      }
+      if (cmd == SshConstants.SSH_MSG_USERAUTH_FAILURE) {
+        return Boolean.FALSE;
+      } else if (cmd == SshConstants.SSH_MSG_USERAUTH_INFO_REQUEST && context == null) {
 
-      if (msg == SshConstants.SSH_MSG_USERAUTH_INFO_REQUEST) {
-        buf.getInt();
-        buf.getByte();
-        buf.getByte();
-        byte[] message = buf.getStringAsBytes();
+        // consume oid
+        byte[] oid = buffer.getStringAsBytes();
 
-        for (int i = 0; i < supported_oid.length; i++) {
-          if (array_equals(message, supported_oid[i])) {
-            method = supported_method[i];
-            break;
+        if (!KRB5_MECH.equals(new Oid(oid))) {
+          if(log.isDebugEnabled()){
+            log.debug("Oid not supported: " + new Oid(oid));
+          }
+          return Boolean.FALSE; // oid not supported
+        }
+        
+        GSSManager manager = GSSManager.getInstance();
+        
+        GSSName name = manager.createName(
+            "krbtgt/EXAMPLE.COM@EXAMPLE.COM", // TODO: pass in host
+            GSSName.NT_USER_NAME);
+        
+        System.setProperty("javax.security.auth.useSubjectCredsOnly", "true"); // TODO: Toggle option
+
+        context = manager.createContext(name, KRB5_MECH, null, GSSContext.DEFAULT_LIFETIME);
+
+        context.requestMutualAuth(true);
+        context.requestConf(true);
+        context.requestInteg(true);
+        context.requestCredDeleg(true);
+        context.requestAnonymity(false);
+        
+        byte[] tok = new byte[0];
+        byte[] out = context.initSecContext(tok, 0, tok.length);
+        
+        buffer = session.createBuffer(SSH_MSG_USERAUTH_GSSAPI_TOKEN);
+        buffer.putBytes(out);
+        session.writePacket(buffer);
+        return Boolean.TRUE;
+      } else if (cmd == SshConstants.SSH_MSG_USERAUTH_SUCCESS) {
+        return Boolean.TRUE;
+      } else { // Handle GSS tokens TODO: Handle errors from server
+
+        if (context.isEstablished()) {
+  
+          if(log.isDebugEnabled()){
+            AbstractSession abSession = ((AbstractSession) session);
+            log.debug("Session id: " + abSession.getIoSession().getId());
+          }
+          
+          // Send MIC TODO: header in wrong format must use SessionId
+          buffer = session.createBuffer(SshConstants.SSH_MSG_USERAUTH_REQUEST);
+          buffer.putString(username);
+          buffer.putString(serviceName);
+          buffer.putString(gssApi);
+  
+          MessageProp msgProp = new MessageProp(true);
+          byte[] mic = context.getMIC(buffer.getBytes(), 0,
+              buffer.getBytes().length, msgProp);
+  
+          buffer = session.createBuffer(SSH_MSG_USERAUTH_GSSAPI_MIC);
+          buffer.putString(mic);
+          session.writePacket(buffer);
+       
+          return Boolean.TRUE;
+        } else {
+          
+          // Not established - new token to process
+          byte[] tok = buffer.getBytes();
+          byte[] out = context.initSecContext(tok, 0, tok.length);
+          boolean established = context.isEstablished();
+  
+          // Send return token if necessary
+          if (out != null && out.length > 0) {
+            buffer = session.createBuffer(SSH_MSG_USERAUTH_GSSAPI_TOKEN);
+            buffer.putBytes(out);
+            session.writePacket(buffer);
+            return Boolean.TRUE;
+          } else {
+            return established;
           }
         }
-
-        if (method == null) {
-          return false;
-        }
-
-        break; // success
       }
-
-      if (msg == SshConstants.SSH_MSG_USERAUTH_BANNER) {
-        buf.getInt();
-        buf.getByte();
-        buf.getByte();
-        byte[] _message = buf.getStringAsBytes();
-        byte[] lang = buf.getStringAsBytes();
-        String message = byte2str(_message);
-        System.out.println("Message: " + message);
-        continue;
-      }
-      return false;
     }
-
-    GSSContextWrapper contextWrapper = new GSSContextWrapper();
-
-    try {
-      contextWrapper.create(session.getUsername(), "0.0.0.0");
-    } catch (Exception e) {
-      return false;
-    }
-
-    byte[] token = new byte[0];
-
-    while (!contextWrapper.isEstablished()) {
+  }
+  
+  /**
+   * Utility to construct an Oid from a string, ignoring the annoying exception.
+   * Copied from org.apache.sshd.server.auth.gss.UserAuthGSS
+   *
+   * @param rep The string form
+   * @return The Oid
+   */
+  private static Oid createOID(String rep) {
       try {
-        token = contextWrapper.init(token, 0, token.length);
-      } catch (Exception e) {
-        // TODO
-        // ERRTOK should be sent?
-        // byte SSH_MSG_USERAUTH_GSSAPI_ERRTOK
-        // string error token
-        return false;
+          return new Oid(rep);
+      } catch (GSSException e) {
+          return null; // won't happen
       }
-
-      if (token != null) {
-        buf = session.createBuffer((byte) SSH_MSG_USERAUTH_GSSAPI_TOKEN);
-        buf.putString(token);
-        session.writePacket(buf);
-      }
-
-      if (!contextWrapper.isEstablished()) {
-        msg = buffer.getByte();
-        if (msg == SSH_MSG_USERAUTH_GSSAPI_ERROR) {
-          // uint32 major_status
-          // uint32 minor_status
-          // string message
-          // string language tag
-
-          msg = buffer.getByte();
-          // return false;
-        } else if (msg == SSH_MSG_USERAUTH_GSSAPI_ERRTOK) {
-          // string error token
-          msg = buffer.getByte();
-          // return false;
-        }
-
-        if (msg == SshConstants.SSH_MSG_USERAUTH_FAILURE) {
-          return false;
-        }
-
-        buf.getInt();
-        buf.getByte();
-        buf.getByte();
-        token = buf.getStringAsBytes();
-      }
-    }
-
-    Buffer mbuf = new Buffer();
-    // string session identifier
-    // byte SSH_MSG_USERAUTH_REQUEST
-    // string user name
-    // string service
-    // string "gssapi-with-mic"
-    mbuf.putString(new byte[12]); // TODO: Find out hash length
-    mbuf.putByte((byte) SshConstants.SSH_MSG_USERAUTH_REQUEST);
-    mbuf.putString(_username);
-    mbuf.putString(str2byte("ssh-connection"));
-    mbuf.putString(str2byte("gssapi-with-mic"));
-    byte[] bytes = mbuf.getBytes();
-    byte[] mic = contextWrapper.getMIC(bytes, 0, bytes.length);
-
-    if (mic == null) {
-      return false;
-    }
-
-    buf = session.createBuffer((byte) SshConstants.SSH_MSG_USERAUTH_GSSAPI_MIC);
-    buf.putString(mic);
-    session.writePacket(buf);
-
-    contextWrapper.dispose();
-
-    msg = buffer.getByte();
-
-    if (msg == SshConstants.SSH_MSG_USERAUTH_SUCCESS) {
-      return true;
-    } else if (msg == SshConstants.SSH_MSG_USERAUTH_FAILURE) {
-      buf.getInt();
-      buf.getByte();
-      buf.getByte();
-      byte[] foo = buf.getStringAsBytes();
-      int partial_success = buf.getByte();
-      if (partial_success != 0) {
-        throw new RuntimeException(byte2str(foo));
-      }
-    }
-    return false;
-  }
-
-  static byte[] str2byte(String str) {
-    return str2byte(str, "UTF-8");
-  }
-
-  static byte[] str2byte(String str, String encoding) {
-    if (str == null)
-      return null;
-    try {
-      return str.getBytes(encoding);
-    } catch (java.io.UnsupportedEncodingException e) {
-      return str.getBytes();
-    }
-  }
-
-  private String byte2str(byte[] str) {
-    return byte2str(str, "UTF-8");
-  }
-
-  private String byte2str(byte[] str, String encoding) {
-    return byte2str(str, 0, str.length, encoding);
-  }
-
-  private String byte2str(byte[] str, int s, int l, String encoding) {
-    try {
-      return new String(str, s, l, encoding);
-    } catch (java.io.UnsupportedEncodingException e) {
-      return new String(str, s, l);
-    }
-  }
-
-  private boolean array_equals(byte[] foo, byte bar[]) {
-    int i = foo.length;
-    if (i != bar.length)
-      return false;
-    for (int j = 0; j < i; j++) {
-      if (foo[j] != bar[j])
-        return false;
-    }
-    return true;
   }
 
   @Override
   public void destroy() {
-    
-
+    try {
+      context.dispose();
+    } catch (GSSException e) {
+      log.error("Could not dispose of context.", e);
+    } finally {
+      context = null;
+    }
   }
 }

@@ -7,11 +7,14 @@ import java.io.FileWriter;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.nio.ByteBuffer;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
@@ -43,8 +46,11 @@ import org.apache.directory.shared.kerberos.KerberosTime;
 import org.apache.directory.shared.kerberos.KerberosUtils;
 import org.apache.directory.shared.kerberos.codec.types.EncryptionType;
 import org.apache.directory.shared.kerberos.codec.types.PrincipalNameType;
+import org.apache.directory.shared.kerberos.components.EncTicketPart;
+import org.apache.directory.shared.kerberos.components.EncryptedData;
 import org.apache.directory.shared.kerberos.components.EncryptionKey;
 import org.apache.directory.shared.kerberos.components.PrincipalName;
+import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorTest.Kiniter.KinitTickets;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Topology;
 import org.apache.sshd.ClientChannel;
@@ -57,6 +63,12 @@ import org.apache.sshd.client.kex.DHG1;
 import org.apache.sshd.common.KeyExchange;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.common.util.SecurityUtils;
+import org.ietf.jgss.GSSContext;
+import org.ietf.jgss.GSSCredential;
+import org.ietf.jgss.GSSException;
+import org.ietf.jgss.GSSManager;
+import org.ietf.jgss.GSSName;
+import org.ietf.jgss.Oid;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -205,18 +217,23 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
     public void setup() throws Throwable {
         kdcServer.setSearchBaseDn( USERS_DN );
         
-        if ( conn == null )
-        {
-            KdcConfig config = KdcConfig.getDefaultConfig();
-            config.setUseUdp( false );
-            config.setKdcPort( kdcServer.getTcpPort() );
-            config.setPasswdPort( kdcServer.getChangePwdServer().getTcpPort() );
-            config.setEncryptionTypes( kdcServer.getConfig().getEncryptionTypes() );
-            config.setTimeout( Integer.MAX_VALUE );
-            conn = new KdcConnection( config );
+        if ( conn == null ) {
+          
+          kdcServer.getConfig().setEncryptionTypes(Collections.singleton(EncryptionType.DES_CBC_MD5));
+          
+          if(LOG.isDebugEnabled()){
+            LOG.debug("Encryption types {}", kdcServer.getConfig().getEncryptionTypes());
+          }
+          
+          KdcConfig config = KdcConfig.getDefaultConfig();
+          config.setUseUdp( false );
+          config.setKdcPort( kdcServer.getTcpPort() );
+          config.setPasswdPort( kdcServer.getChangePwdServer().getTcpPort() );
+          config.setEncryptionTypes( kdcServer.getConfig().getEncryptionTypes() );          
+          config.setTimeout( Integer.MAX_VALUE );
+          conn = new KdcConnection( config );
         }
-        if ( serverPrincipal == null )
-        {
+        if ( serverPrincipal == null ) {
             serverPrincipal = KerberosTestUtils.fixServicePrincipalName( "ldap/localhost@EXAMPLE.COM", new Dn(
                 "uid=ldap,dc=example,dc=com" ), getLdapServer() );
         }
@@ -284,7 +301,20 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
     }
     
     public class Kiniter {
-      public File kinit(String principal, String password) throws Throwable {
+      
+      public class KinitTickets{
+        File cCacheFile;
+        TgTicket tgt;
+        ServiceTicket serviceTicket;
+        
+        public KinitTickets(File cCacheFile, TgTicket tgt, ServiceTicket serviceTicket) {
+          this.cCacheFile = cCacheFile;
+          this.tgt = tgt;
+          this.serviceTicket = serviceTicket;
+        }
+      }
+      
+      public KinitTickets kinit(String principal, String password) throws Throwable {
         
         File cCacheFile = testFolder.newFile("ccache");
         
@@ -311,13 +341,17 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
         
         CredentialsCache.store(cCacheFile, credCache);
         
-        return cCacheFile;
+        return new KinitTickets(cCacheFile, tgt, serviceTicket);
       }
     }
     
     class SSHPrivledgedAction implements PrivilegedAction {
       
-      public SSHPrivledgedAction() { }
+      private byte[] ticket;
+
+      public SSHPrivledgedAction(byte[] ticket) { 
+        this.ticket = ticket;
+      }
 
       @Override
       public Object run() {
@@ -330,8 +364,6 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
           
           client.setUserAuthFactories(userAuthFactories);
           
-          client.setKeyExchangeFactories(Arrays.<NamedFactory<KeyExchange>>asList(
-                    new DHG1.Factory()));
           client.start();
           
           ConnectFuture connFuture = client.connect(CLIENT_UID, APP_HOST, APP_PORT).await();
@@ -377,8 +409,6 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
 
       Kiniter kiniter = new Kiniter();
       SSHProviderConfigurer configurer = new SSHProviderConfigurer();
-
-      SecurityUtils.setRegisterBouncyCastle(false); // must disable BC to get ciphers to work.
       
       SSHDeploymentContributor deploymentContrib = new SSHDeploymentContributor(
           configurer);
@@ -388,15 +418,19 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
       
       LOG.info("KDC Server info: " + kdcServer.toString());
       
-      File ccache = kiniter.kinit(CLIENT_PRINCIPAL, PASSWORD);
-      
+      KinitTickets tickets = kiniter.kinit(CLIENT_PRINCIPAL, PASSWORD);
+
       // Create new loginConf
       File loginConf = testFolder.newFile("login.conf");
       
       String content = "client {" + 
         " com.sun.security.auth.module.Krb5LoginModule required" + 
         " useTicketCache=true" +
-        " ticketCache=\"" + ccache.getAbsolutePath() + "\"" +   
+        " ticketCache=\"" + tickets.cCacheFile.getAbsolutePath() + "\"" +
+//        " storeKey=true" + 
+//        " useKeyTab=true" + 
+//        " principal=client" + 
+//        " keyTab=\"/Users/clumjo/BAH/huron/knox-jclum/gateway-provider-mina-sshd/src/test/resources/client.keytab\"" +  
         " debug=true;" + 
       " };";
       
@@ -409,6 +443,9 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
       System.out.println("Wrote login.conf[" + content + "] to file[" + loginConf.getAbsolutePath() + "]");
       
       System.setProperty("java.security.auth.login.config", loginConf.getAbsolutePath());
+      System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
+      System.setProperty("java.security.krb5.kdc","localhost:6089");
+//      System.setProperty("java.security.krb5.conf", "/Users/clumjo/BAH/huron/knox-jclum/gateway-provider-mina-sshd/src/test/resources/krb5.conf");
       
       System.out.println("sendCommand");
       
@@ -416,7 +453,13 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
 
       lc.login();
 
-      Subject.doAs(lc.getSubject(), new SSHPrivledgedAction());
+      
+      EncryptedData originalTicket = tickets.serviceTicket.getTicket().getEncPart();
+      
+      ByteBuffer serviceTicketBuffer = ByteBuffer.allocate(originalTicket.computeLength());
+      serviceTicketBuffer = originalTicket.encode(serviceTicketBuffer);
+      
+      Subject.doAs(lc.getSubject(), new SSHPrivledgedAction(serviceTicketBuffer.array()));
 
     }
 
