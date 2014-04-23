@@ -78,6 +78,8 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.io.Resources;
+
 
 @RunWith(FrameworkRunner.class)
 @CreateDS(name = "KdcConnectionTest-class", enableChangeLog = false,
@@ -207,8 +209,6 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
     
     private static String serverPrincipal;
     private static KdcConnection conn;
-    private static File clientKeytab;
-    private static File sshKeytab;
     
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();
@@ -238,42 +238,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
                 "uid=ldap,dc=example,dc=com" ), getLdapServer() );
         }
         
-        // Generate keytabs
-        KeytabGenerator keyGen = new KeytabGenerator();
-        clientKeytab = keyGen.generateKeytab(testFolder.newFile("client.keytab"), CLIENT_PRINCIPAL, PASSWORD);
-        sshKeytab = keyGen.generateKeytab(testFolder.newFile("ssh.keytab"), SSH_PRINCIPAL, PASSWORD);
     }
-    
-    private class KeytabGenerator{
-      
-      public File generateKeytab(File keytabFile, String principalName, String userPassword) throws Throwable {
-        
-        Keytab keytab = Keytab.getInstance(); 
-        KerberosTime timeStamp = new KerberosTime(KerberosUtils.UTC_DATE_FORMAT.parse("20070217235745Z"));
-
-        Map<EncryptionType, EncryptionKey> keys = KerberosKeyFactory
-            .getKerberosKeys(principalName, userPassword);
-        
-        System.out.println("encryption key: " + keys.get(EncryptionType.DES_CBC_MD5).getKeyValue());
-
-        KeytabEntry keytabEntry = new KeytabEntry(
-            principalName, 
-            1L,
-            timeStamp, 
-            (byte) 0,
-            keys.get(EncryptionType.DES_CBC_MD5));
-        
-        List<KeytabEntry> entry = Arrays.asList(keytabEntry);
-        
-        keytab.setEntries(entry);
-        
-        keytab.write(keytabFile);
-        
-        return keytabFile;
-      }
-    }
-    
-
     
     private class TestProvider extends Provider {
       @Override
@@ -292,7 +257,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
           return new SSHConfiguration(
               APP_PORT, 
               testFolder.newFile().getAbsolutePath(), 
-              sshKeytab.getAbsolutePath(),
+              Resources.getResource("ssh.keytab").getFile(),
               SSH_PRINCIPAL, 0);
         } catch (Throwable e) {
           throw new RuntimeException(e);
@@ -346,12 +311,6 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
     }
     
     class SSHPrivledgedAction implements PrivilegedAction {
-      
-      private byte[] ticket;
-
-      public SSHPrivledgedAction(byte[] ticket) { 
-        this.ticket = ticket;
-      }
 
       @Override
       public Object run() {
@@ -430,7 +389,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
 //        " storeKey=true" + 
 //        " useKeyTab=true" + 
 //        " principal=client" + 
-//        " keyTab=\"/Users/clumjo/BAH/huron/knox-jclum/gateway-provider-mina-sshd/src/test/resources/client.keytab\"" +  
+//        " keyTab=\"" + Resources.getResource("client.keytab").getFile() + "\"" +  
         " debug=true;" + 
       " };";
       
@@ -445,7 +404,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
       System.setProperty("java.security.auth.login.config", loginConf.getAbsolutePath());
       System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
       System.setProperty("java.security.krb5.kdc","localhost:6089");
-//      System.setProperty("java.security.krb5.conf", "/Users/clumjo/BAH/huron/knox-jclum/gateway-provider-mina-sshd/src/test/resources/krb5.conf");
+//      System.setProperty("java.security.krb5.conf", Resources.getResource("krb5.conf").getFile() );
       
       System.out.println("sendCommand");
       
@@ -453,13 +412,7 @@ public class SSHDeploymentContributorTest extends AbstractLdapTestUnit {
 
       lc.login();
 
-      
-      EncryptedData originalTicket = tickets.serviceTicket.getTicket().getEncPart();
-      
-      ByteBuffer serviceTicketBuffer = ByteBuffer.allocate(originalTicket.computeLength());
-      serviceTicketBuffer = originalTicket.encode(serviceTicketBuffer);
-      
-      Subject.doAs(lc.getSubject(), new SSHPrivledgedAction(serviceTicketBuffer.array()));
+      Subject.doAs(lc.getSubject(), new SSHPrivledgedAction());
 
     }
 
