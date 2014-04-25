@@ -28,7 +28,7 @@ public class KnoxUserAuthGssTest {
       userAuth = factory.create();
   }  
 
-  @Test
+  @Test //TODO
   public void testUserAuthAudit() throws Throwable{
     
   }
