@@ -31,8 +31,8 @@ public class TerminalActionAuditRecoder {
       handler.handleError(e, work.getOriginatingShell());
       return;
     }
-    String user = work.user;
-    String resource = work.resource;
+    String user = work.getUser();
+    String resource = work.getResource();
     if (line != null) {
       AUDITOR.audit(Action.ACCESS, user + "@" + resource + ":" + line,
           ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE);
