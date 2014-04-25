@@ -97,6 +97,12 @@
             <artifactId>xml-matchers</artifactId>
             <scope>test</scope>
         </dependency>
+        
+        <dependency>
+            <groupId>org.apache.directory.server</groupId>
+            <artifactId>apacheds-protocol-shared</artifactId>
+<!--             <scope>test</scope> -->
+        </dependency>
 
         <!-- This must be after restassured otherwise is messes up the hamcrest dependencies. -->
         <dependency>

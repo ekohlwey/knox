@@ -8,10 +8,10 @@ public class TerminalAuditThread extends Thread {
   private final ArrayBlockingQueue<TerminalAuditWork> workQueue;
   private boolean stop;
   private final ReentrantLock stopLock = new ReentrantLock();
-  private final TerminalActionAuditRecoder auditor;
+  private final TerminalActionAuditRecorder auditor;
 
   public TerminalAuditThread(ArrayBlockingQueue<TerminalAuditWork> workQueue,
-      TerminalActionAuditRecoder auditor) {
+      TerminalActionAuditRecorder auditor) {
     this.workQueue = workQueue;
     this.auditor = auditor;
     setDaemon(true);

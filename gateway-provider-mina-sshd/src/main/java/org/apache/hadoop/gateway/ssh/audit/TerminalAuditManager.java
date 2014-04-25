@@ -16,7 +16,7 @@ public class TerminalAuditManager {
   }
 
   private TerminalErrorHandler errorHandler = new TerminalErrorHandler();
-  private TerminalActionAuditRecoder auditor = new TerminalActionAuditRecoder(
+  private TerminalActionAuditRecorder auditor = new TerminalActionAuditRecorder(
       errorHandler);
   private ArrayBlockingQueue<TerminalAuditWork> terminalWorkQueue = new ArrayBlockingQueue<TerminalAuditWork>(
       1024);

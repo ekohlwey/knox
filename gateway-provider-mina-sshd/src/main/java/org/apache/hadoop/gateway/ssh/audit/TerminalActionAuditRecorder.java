@@ -10,11 +10,11 @@ import org.apache.hadoop.gateway.audit.api.Auditor;
 import org.apache.hadoop.gateway.audit.api.ResourceType;
 import org.apache.hadoop.gateway.audit.log4j.audit.AuditConstants;
 
-public class TerminalActionAuditRecoder {
+public class TerminalActionAuditRecorder {
 
   private final TerminalErrorHandler handler;
 
-  public TerminalActionAuditRecoder(TerminalErrorHandler handler) {
+  public TerminalActionAuditRecorder(TerminalErrorHandler handler) {
     this.handler = handler;
   }
 

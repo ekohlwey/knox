@@ -54,6 +54,7 @@ public class ConnectSSHAction extends SSHAction {
           PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(error));
           errorOut.println("Failed to connect to " + host + ":" + port);
           errorOut.close();
+          error.flush();
           return SSH_ERROR_CODE;
         }
         channelShell = session.createShellChannel();
@@ -119,7 +120,7 @@ public class ConnectSSHAction extends SSHAction {
 
   @Override
   public int handleCommand(String command, String commandLine,
-      BufferedReader inputStream, OutputStream outputStream, OutputStream error) {
+      BufferedReader inputStream, OutputStream outputStream, OutputStream error) throws IOException {
     matcher.reset(commandLine);
     if (matcher.matches()) {
       KeyPair key = new FileKeyPairProvider(new String[] { keyFile })
@@ -138,6 +139,8 @@ public class ConnectSSHAction extends SSHAction {
       PrintWriter errorWriter = new PrintWriter(new NoCloseOutputStream(error));
       errorWriter.println("Invalid argument: " + commandLine);
       errorWriter.println("please use a hostname of the form <host>[:<port>]");
+      errorWriter.close();
+      error.flush();
       return SSH_ERROR_CODE;
     }
   }

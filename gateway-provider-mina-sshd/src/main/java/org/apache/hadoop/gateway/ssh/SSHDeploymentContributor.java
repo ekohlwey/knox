@@ -38,6 +38,11 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
   public String getRole() {
     return "ssh";
   }
+  
+  public void close(){
+    sshd.close(true);
+    sshd = null;
+  }
 
   @Override
   public String getName() {
@@ -52,7 +57,7 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
   }
 
   public SSHDeploymentContributor() {
-    this(new StandardProviderConfigurer());
+    this(new ProviderConfigurer());
   }
 
   public SSHDeploymentContributor(ProviderConfigurer configurer) {
@@ -68,18 +73,26 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
     sshd.setPort(configuration.getPort());
     sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(configuration
         .getSshFingerprintLocation()));
-    List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(
-        1);
-    userAuthFactories.add(new KnoxUserAuthGSS.Factory());
+    List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>();
+    
     sshd.setUserAuthFactories(userAuthFactories);
 
-    GSSAuthenticator authenticator = new GSSAuthenticator();
-    authenticator.setKeytabFile(configuration.getKeytabLocation());
-    String servicePrincipal = configuration.getServicePrincipal();
-    if (servicePrincipal != null) {
-      authenticator.setServicePrincipalName(servicePrincipal);
+    if (configuration.isUseKerberosAuth()) {
+      userAuthFactories.add(new KnoxUserAuthGSS.Factory());
+      GSSAuthenticator gssAuthenticator = new GSSAuthenticator();
+      gssAuthenticator.setKeytabFile(configuration.getKeytabLocation());
+      String servicePrincipal = configuration.getServicePrincipal();
+      if (servicePrincipal != null) {
+        gssAuthenticator.setServicePrincipalName(servicePrincipal);
+      }
+      sshd.setGSSAuthenticator(gssAuthenticator);
     }
-    sshd.setGSSAuthenticator(authenticator);
+    if (configuration.isUseLdapAuth()) {
+      userAuthFactories.add(new KnoxUserAuthPassword.Factory());
+      sshd.setPasswordAuthenticator(new KnoxLDAPPasswordAuthenticator(
+          configuration));
+    }
+    sshd.setUserAuthFactories(userAuthFactories);
     int workers = configuration.getWorkers();
     if (workers > 0) {
       sshd.setNioWorkers(workers);

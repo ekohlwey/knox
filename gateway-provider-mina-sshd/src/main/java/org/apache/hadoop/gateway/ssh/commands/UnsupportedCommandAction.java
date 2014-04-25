@@ -21,6 +21,7 @@ public class UnsupportedCommandAction extends SSHAction {
     errorWriter.println("-knox: " + command + ": command not found");
     errorWriter.println("type 'help' for a list of commands");
     errorWriter.close();
+    error.flush();
     return 127;
   }
 
