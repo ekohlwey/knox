@@ -262,6 +262,11 @@
             <artifactId>xmltool</artifactId>
             <scope>test</scope>
         </dependency>
+        
+        <dependency>
+            <groupId>org.apache.directory.server</groupId>
+            <artifactId>apacheds-protocol-shared</artifactId>
+        </dependency>
 
     </dependencies>
 
