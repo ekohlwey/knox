@@ -3,6 +3,7 @@ package org.apache.hadoop.gateway.ssh;
 import java.io.IOException;
 
 import org.apache.directory.api.ldap.model.exception.LdapException;
+import org.apache.directory.api.ldap.model.url.LdapUrl;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 import org.apache.sshd.server.PasswordAuthenticator;
@@ -42,19 +43,14 @@ public class KnoxLDAPPasswordAuthenticator implements PasswordAuthenticator {
       if (authenticationUrl == null) {
         authenticationUrl = configuration.getAuthorizationURL();
       }
+      LdapUrl url = new LdapUrl(authenticationUrl);
       String bindName = configuration.getAuthenticationPattern().replace("{0}",
           username);
-      connection = new LdapNetworkConnection();
-      try {
-        connection.bind(bindName, password);
-      } catch (LdapException e) {
-        // indicates that bind was unsuccessful ->user not authenticated
-        return false;
-      } finally {
-        connection.unBind();
-      }
+      connection = new LdapNetworkConnection(url.getHost(), url.getPort(), url.getScheme().startsWith("ldaps"));
+      connection.bind(bindName, password);
+      return true;
     } catch (LdapException e) {
-      LOG.error("Unable to unbind from LDAP connection.", e);
+      return false;
     } finally {
       if (connection != null) {
         try {
@@ -64,7 +60,6 @@ public class KnoxLDAPPasswordAuthenticator implements PasswordAuthenticator {
         }
       }
     }
-    return true;
   }
 
 }
