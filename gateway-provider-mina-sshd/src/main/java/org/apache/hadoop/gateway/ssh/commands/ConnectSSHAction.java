@@ -1,7 +1,6 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
 import static java.nio.charset.Charset.forName;
-import static java.util.Arrays.asList;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -12,8 +11,6 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
-import java.nio.charset.Charset;
-import java.security.KeyPair;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,13 +23,11 @@ import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.apache.sshd.ClientChannel;
 import org.apache.sshd.ClientSession;
 import org.apache.sshd.SshClient;
-import org.apache.sshd.agent.unix.AgentClient;
-import org.apache.sshd.agent.unix.AgentServer;
 import org.apache.sshd.client.UserAuth;
 import org.apache.sshd.client.auth.UserAuthPublicKey;
 import org.apache.sshd.client.channel.ChannelShell;
+import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
-import org.apache.sshd.common.KeyPairProvider;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.common.RuntimeSshException;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
@@ -91,7 +86,7 @@ public class ConnectSSHAction extends SSHAction {
             }
             PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(
                 error));
-            errorOut.println("Failed to connect to " + host + ":" + port);
+            errorOut.println("Failed to connect to " + host + ":" + port + " connection timed out.");
             errorOut.close();
             error.flush();
             return SSH_ERROR_CODE;
@@ -103,7 +98,20 @@ public class ConnectSSHAction extends SSHAction {
             }
             PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(
                 error));
-            errorOut.println("Failed to connect to " + host + ":" + port);
+            errorOut.println("Failed to connect to " + host + ":" + port + " connection refused.");
+            errorOut.close();
+            error.flush();
+            return SSH_ERROR_CODE;
+          }
+          AuthFuture auth = future.getSession().auth();
+          if(!auth.await(sshConfiguration.getTunnelConnectTimeout())){
+            if (LOG.isInfoEnabled()) {
+              LOG.info("Was unable to connect to server: " + host + ":" + port
+                  + "  connection timed out.", future.getException());
+            }
+            PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(
+                error));
+            errorOut.println("Failed to connect to " + host + ":" + port + " connection timed out.");
             errorOut.close();
             error.flush();
             return SSH_ERROR_CODE;
