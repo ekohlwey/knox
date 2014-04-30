@@ -92,6 +92,10 @@ public class ProviderConfigurer {
     }
 
     SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setPort(port);
+    configuration.setWorkers(workers);
+    configuration.setUseKerberosAuth(useKerberos);
+    configuration.setServicePrincipal(servicePrincipal);
     configuration.setAuthenticationPattern(authPattern);
     configuration.setAuthenticationURL(authenticationURL);
     configuration.setAuthorizationBase(authorizationBase);
