@@ -13,14 +13,18 @@ import org.apache.hadoop.gateway.audit.log4j.audit.AuditConstants;
 public class TerminalActionAuditRecorder {
 
   private final TerminalErrorHandler handler;
+  private final Auditor auditor;
 
   public TerminalActionAuditRecorder(TerminalErrorHandler handler) {
-    this.handler = handler;
+    this(handler, AuditServiceFactory.getAuditService()
+        .getAuditor(AuditConstants.DEFAULT_AUDITOR_NAME,
+            AuditConstants.KNOX_SERVICE_NAME, AuditConstants.KNOX_COMPONENT_NAME));
   }
 
-  private static final Auditor AUDITOR = AuditServiceFactory.getAuditService()
-      .getAuditor(AuditConstants.DEFAULT_AUDITOR_NAME,
-          AuditConstants.KNOX_SERVICE_NAME, AuditConstants.KNOX_COMPONENT_NAME);
+  public TerminalActionAuditRecorder(TerminalErrorHandler handler, Auditor auditor) {
+    this.handler = handler;
+    this.auditor = auditor;
+  }
 
   public void auditWork(TerminalAuditWork work) {
     BufferedReader reader = work.getReader();
@@ -34,7 +38,7 @@ public class TerminalActionAuditRecorder {
     String user = work.user;
     String resource = work.resource;
     if (line != null) {
-      AUDITOR.audit(Action.ACCESS, user + "@" + resource + ":" + line,
+      auditor.audit(Action.ACCESS, user + "@" + resource + ":" + line,
           ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE);
     } else {
       try {
