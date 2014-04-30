@@ -14,12 +14,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- *
- */
 public class TerminalActionAuditRecorderTest {
-  private static Logger LOG =
-      LoggerFactory.getLogger(TerminalActionAuditRecorderTest.class);
 
   @Test
   public void testAuditWork() throws Exception {
