@@ -10,6 +10,7 @@ import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.url.LdapUrl;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
+import org.apache.hadoop.gateway.ssh.LDAPConnectionFactory.InvalidURLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,25 +18,27 @@ public class LDAPAuthorizer {
 
   private final LDAPEscaper escaper;
   private final SSHConfiguration configuration;
+  private final LDAPConnectionFactory connectionFactory;
   private static final Logger LOG = LoggerFactory
       .getLogger(LDAPAuthorizer.class);
 
-  public LDAPAuthorizer(SSHConfiguration configuration, LDAPEscaper escaper) {
+  public LDAPAuthorizer(SSHConfiguration configuration, LDAPEscaper escaper,
+      LDAPConnectionFactory ldapConnectionFactory) {
     this.configuration = configuration;
     this.escaper = escaper;
+    this.connectionFactory = ldapConnectionFactory;
   }
 
   public LDAPAuthorizer(SSHConfiguration configuration) {
-    this(configuration, new LDAPEscaper());
+    this(configuration, new LDAPEscaper(), new LDAPConnectionFactory());
   }
 
   public boolean authorize(String username) {
     LdapConnection connection = null;
     EntryCursor cursor = null;
     try {
-      LdapUrl url = new LdapUrl(configuration.getAuthorizationURL());
-      connection = new LdapNetworkConnection(url.getHost(), url.getPort(), url
-          .getScheme().equals("ldaps"));
+      connection = connectionFactory.createConnection(configuration
+          .getAuthorizationURL());
       connection.bind(configuration.getAuthorizationUser(),
           configuration.getAuthorizationPass());
       StringBuilder queryString = new StringBuilder();
@@ -79,6 +82,11 @@ public class LDAPAuthorizer {
     } catch (CursorException e) {
       LOG.error("Unable to read from LDAP", e);
       return false;
+    } catch (InvalidURLException e) {
+      LOG.error("Invalid LDAP URI in configuration: "
+          + configuration.getAuthorizationURL()
+          + ". Nobody will be authorized to connect, even if authenticated.");
+      return false;
     } finally {
       try {
         if (cursor != null) {
@@ -87,18 +95,10 @@ public class LDAPAuthorizer {
       } finally {
         try {
           if (connection != null) {
-            connection.unBind();
+            connection.close();
           }
-        } catch (LdapException e) {
-          LOG.error("Unable to unbind from LDAP", e);
-        } finally {
-          try {
-            if (connection != null) {
-              connection.close();
-            }
-          } catch (IOException e) {
-            LOG.error("IO exception disconnecting from LDAP", e);
-          }
+        } catch (IOException e) {
+          LOG.error("IO exception disconnecting from LDAP", e);
         }
       }
     }

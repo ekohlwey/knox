@@ -42,7 +42,7 @@ import org.junit.runner.RunWith;
     "ou: someOU",
     "userPassword: secret"
     })
-public class KnoxLDAPAuthorizerITest extends AbstractLdapTestUnit {
+public class LDAPAuthorizerITest extends AbstractLdapTestUnit {
 
   @Test
   public void testAuthorizesValidUserNoGroups() {

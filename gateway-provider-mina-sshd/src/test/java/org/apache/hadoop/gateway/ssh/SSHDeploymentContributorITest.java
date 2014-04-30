@@ -253,6 +253,39 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
     Assert.assertTrue("Did not receive output", out.toByteArray().length > 0);
   }
+  
+  @Test
+  public void testDeniesBadUser() throws Throwable {
+
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setPort(60022);
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
+    configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
+    configuration.setUseLdapAuth(true);
+    SSHDeploymentContributor contributor = new SSHDeploymentContributor(
+        new TestProviderConfigurer(configuration));
+
+    contributor.contributeProvider(null, new TestProvider());
+    SshClient client = SshClient.setUpDefaultClient();
+    List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(
+        1);
+    userAuthFactories.add(new UserAuthStaticPassword.Factory());
+    client.setUserAuthFactories(userAuthFactories);
+    client.start();
+    ConnectFuture connFuture = client.connect("asdfdsaf", "localhost", 60022)
+        .await();
+    Assert.assertTrue("Could not connect to server", connFuture.isConnected());
+    ClientSession session = connFuture.getSession();
+    AuthFuture authfuture = session.auth().await();
+    Assert.assertFalse(
+        "Authenticated to server",
+        authfuture.isSuccess());
+    client.stop();
+  }
 
   @Test
   public void testConnectionWithHop() throws Throwable {

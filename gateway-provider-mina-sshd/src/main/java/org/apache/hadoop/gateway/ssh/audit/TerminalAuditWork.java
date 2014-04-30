@@ -42,15 +42,4 @@ public class TerminalAuditWork {
     return user;
   }
 
-  public void run() {
-    try {
-      if (reader.ready()) {
-
-      }
-    } catch (IOException e) {
-      LOG.error("Unable to read piped audit log stream. "
-          + "Audits may have been lost. Killing the original shell.", e);
-      originatingShell.destroy();
-    }
-  }
 }

@@ -11,7 +11,6 @@ import org.apache.directory.server.core.annotations.CreateDS;
 import org.apache.directory.server.core.annotations.CreatePartition;
 import org.apache.directory.server.core.integ.AbstractLdapTestUnit;
 import org.apache.directory.server.core.integ.FrameworkRunner;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -41,7 +40,7 @@ public class KnoxLDAPPasswordAuthenticatorITest extends AbstractLdapTestUnit {
     configuration.setAuthenticationURL("ldap://localhost:60389");
     
     KnoxLDAPPasswordAuthenticator pa = new KnoxLDAPPasswordAuthenticator(
-        configuration, new LDAPEscaper(), alwaysAuthorizer);
+        configuration, new LDAPEscaper(), alwaysAuthorizer, new LDAPConnectionFactory());
     assertTrue("User was not able to authenticate via bind.",
         pa.authenticate("client", "secret", null));
 
@@ -55,7 +54,7 @@ public class KnoxLDAPPasswordAuthenticatorITest extends AbstractLdapTestUnit {
     configuration.setAuthenticationURL("ldap://localhost:60389");
     
     KnoxLDAPPasswordAuthenticator pa = new KnoxLDAPPasswordAuthenticator(
-        configuration, new LDAPEscaper(), alwaysAuthorizer);
+        configuration, new LDAPEscaper(), alwaysAuthorizer, new LDAPConnectionFactory());
     assertFalse("User was able to authenticate via bind.",
         pa.authenticate("client", "dsflkjsdf", null));
 
@@ -68,7 +67,7 @@ public class KnoxLDAPPasswordAuthenticatorITest extends AbstractLdapTestUnit {
     configuration.setAuthenticationURL("ldap://localhost:60389");
     
     KnoxLDAPPasswordAuthenticator pa = new KnoxLDAPPasswordAuthenticator(
-        configuration, new LDAPEscaper(), alwaysAuthorizer);
+        configuration, new LDAPEscaper(), alwaysAuthorizer, new LDAPConnectionFactory());
     assertFalse("User was able to authenticate via bind.",
         pa.authenticate("sdafdsaf", "dsflkjsdf", null));
   }
