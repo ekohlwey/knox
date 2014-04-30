@@ -23,6 +23,9 @@ public class ProviderConfigurer {
   public static final String LDAP_AUTHORIZATION_GROUP_IDS = "ldap-authorization-groups";
   public static final String LDAP_AUTHENTICATION_ENABLED = "ldap-authentication-enabled";
   public static final String TRUE = "true";
+  public static final String TUNNEL_KEYFILE = "tunnel-keyfile";
+  public static final String TUNNEL_USER = "tunnel-user";
+  public static final String LOGIN_COMMAND ="login-command";
 
   public SSHConfiguration configure(Provider provider) {
     Map<String, String> providerParams = provider.getParams();
@@ -75,11 +78,33 @@ public class ProviderConfigurer {
       authenticationURL = providerParams.get(LDAP_AUTHENTICATION_URL);
       authPattern = providerParams.get(LDAP_AUTHENTICATION_NAME_PATTERN);
     }
+    String knoxKeyfile = providerParams.get(TUNNEL_KEYFILE);
+    if(knoxKeyfile == null){
+      knoxKeyfile = "/etc/knox/conf/id_knox.pem";
+    }
+    String knoxLoginUser = providerParams.get(TUNNEL_USER );
+    if(knoxLoginUser == null){
+      knoxLoginUser = "knox";
+    }
+    String loginCommand = providerParams.get(LOGIN_COMMAND);
+    if(loginCommand == null){
+      loginCommand = "exec sudo -iu {0} ; logout";
+    }
 
-    return new SSHConfiguration(port, sshLocation, useKerberos, keytabLocation,
-        servicePrincipal, workers, authorizationBase, authorizationUser,
-        authorizationPass, authorizationGroupAttribute, authorizationURL,
-        authorizationNameAttribute, authenticationURL, authPattern,
-        authorizationGroups, ldapEnabled);
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthenticationPattern(authPattern);
+    configuration.setAuthenticationURL(authenticationURL);
+    configuration.setAuthorizationBase(authorizationBase);
+    configuration.setAuthorizationGroupAttribute(authorizationGroupAttribute);
+    configuration.setAuthorizationGroupIds(authorizationGroups);
+    configuration.setAuthorizationNameAttribute(authorizationNameAttribute);
+    configuration.setAuthorizationPass(authorizationPass);
+    configuration.setAuthorizationURL(authorizationURL);
+    configuration.setAuthorizationUser(authorizationUser);
+    configuration.setKeytabLocation(keytabLocation);
+    configuration.setKnoxKeyfile(knoxKeyfile);
+    configuration.setKnoxLoginUser(knoxLoginUser);
+    configuration.setLoginCommand(loginCommand);
+    return configuration;
   }
 }

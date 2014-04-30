@@ -82,8 +82,24 @@
 
     <dependency>
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk15</artifactId>
+      <artifactId>bcprov-jdk15on</artifactId>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk15on</artifactId>
     </dependency>
 
   </dependencies>
+  
+  <profiles>
+    <profile>
+      <activation>
+        <os>
+          <family>mac</family>
+        </os>
+      </activation>
+      
+    </profile>
+  </profiles>
 </project>

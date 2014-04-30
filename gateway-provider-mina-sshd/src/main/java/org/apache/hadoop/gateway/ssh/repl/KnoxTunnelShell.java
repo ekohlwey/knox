@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.HelpSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
@@ -31,14 +32,15 @@ public class KnoxTunnelShell implements Command {
   private OutputStream outputStream;
   private final Map<String, SSHAction> actionMap = new HashMap<String, SSHAction>();
   private final ShellExitHandler exitHandler = new ShellExitHandler(this);
-  private final ShellInterpreterThread interpreterThread = new ShellInterpreterThread(
-      this, exitHandler, actionMap);
+  private ShellInterpreterThread interpreterThread = null;
   private final String topologyName;
   private BufferedReader reader;
-  private  String username;
+  private String username;
+  private final SSHConfiguration sshConfiguration;
 
-  public KnoxTunnelShell(String topologyName) {
+  public KnoxTunnelShell(String topologyName, SSHConfiguration configuration) {
     this.topologyName = topologyName;
+    this.sshConfiguration = configuration;
   }
 
   @Override
@@ -76,11 +78,13 @@ public class KnoxTunnelShell implements Command {
     Map<String, String> env = arg0.getEnv();
     username = env.get(Environment.ENV_USER);
     List<SSHAction> actions = new ArrayList<SSHAction>();
-    actions.add(new ConnectSSHAction(username, null));
+    actions.add(new ConnectSSHAction(username, sshConfiguration, this));
     actions.add(new HelpSSHAction(actionMap));
     for (SSHAction action : actions) {
       actionMap.put(action.getCommand(), action);
     }
+    interpreterThread =  new ShellInterpreterThread(
+        this, exitHandler, reader, outputStream, errorStream, actionMap);
     interpreterThread.start();
   }
 
@@ -99,7 +103,7 @@ public class KnoxTunnelShell implements Command {
   public OutputStream getOutputStream() {
     return outputStream;
   }
-  
+
   public String getUsername() {
     return username;
   }
@@ -111,6 +115,10 @@ public class KnoxTunnelShell implements Command {
    */
   public BufferedReader getReader() {
     return reader;
+  }
+
+  public Object getConfiguration() {
+    return sshConfiguration;
   }
 
 }

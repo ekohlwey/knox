@@ -1,15 +1,25 @@
 package org.apache.hadoop.gateway.ssh;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-import org.apache.directory.api.ldap.model.name.Dn;
-import org.apache.directory.kerberos.client.KdcConfig;
-import org.apache.directory.kerberos.client.KdcConnection;
 import org.apache.directory.server.annotations.CreateLdapServer;
 import org.apache.directory.server.annotations.CreateTransport;
 import org.apache.directory.server.core.annotations.ApplyLdifs;
@@ -18,20 +28,25 @@ import org.apache.directory.server.core.annotations.CreateDS;
 import org.apache.directory.server.core.annotations.CreatePartition;
 import org.apache.directory.server.core.integ.AbstractLdapTestUnit;
 import org.apache.directory.server.core.integ.FrameworkRunner;
-import org.apache.directory.server.kerberos.kdc.KerberosTestUtils;
-import org.apache.directory.shared.kerberos.codec.types.EncryptionType;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Topology;
 import org.apache.sshd.ClientChannel;
 import org.apache.sshd.ClientSession;
 import org.apache.sshd.SshClient;
+import org.apache.sshd.SshServer;
 import org.apache.sshd.client.UserAuth;
 import org.apache.sshd.client.auth.UserAuthPassword;
 import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
+import org.apache.sshd.common.Factory;
 import org.apache.sshd.common.NamedFactory;
+import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.server.Command;
+import org.apache.sshd.server.Environment;
+import org.apache.sshd.server.ExitCallback;
+import org.apache.sshd.server.auth.UserAuthPublicKey;
+import org.bouncycastle.openssl.PEMWriter;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -55,6 +70,101 @@ import org.slf4j.LoggerFactory;
  */
 public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
+  public static class PipingCommandFactory implements Factory<Command> {
+
+    private final PipedOutputStream outPipe;
+
+    public PipingCommandFactory(PipedInputStream inPipe) {
+      outPipe = new PipedOutputStream();
+      try {
+        outPipe.connect(inPipe);
+      } catch (IOException e) {
+        LOG.error("Can't close pipe", e);
+      }
+    }
+
+    @Override
+    public Command create() {
+      return new Command() {
+
+        private InputStream inputStream;
+        private OutputStream out;
+        private OutputStream err;
+        private ExitCallback callback;
+
+        @Override
+        public void start(Environment env) throws IOException {
+          new Thread() {
+            @Override
+            public void run() {
+              byte[] buffer = new byte[1024];
+              int read;
+              try {
+                while ((read = inputStream.read(buffer)) > 0) {
+                  outPipe.write(buffer, 0, read);
+                  outPipe.flush();
+                }
+              } catch (IOException e) {
+                LOG.error("Cant write to pipe", e);
+              } finally {
+                try {
+                  outPipe.close();
+                } catch (IOException e) {
+                  LOG.error("Cant close pipe", e);
+                }
+                callback.onExit(0);
+              }
+            }
+          }.start();
+          try {
+            out.write("connected out\n".getBytes());
+            out.flush();
+          } catch (IOException e) {
+            LOG.error("Unable to write out connection message.", e);
+          }
+          try {
+            err.write("connected error\n".getBytes());
+            err.flush();
+          } catch (IOException e) {
+            LOG.error("Unable to write error connection message.", e);
+          }
+        }
+
+        @Override
+        public void setOutputStream(OutputStream out) {
+          this.out = out;
+        }
+
+        @Override
+        public void setInputStream(final InputStream in) {
+
+          this.inputStream = in;
+        }
+
+        @Override
+        public void setExitCallback(ExitCallback callback) {
+          this.callback = callback;
+        }
+
+        @Override
+        public void setErrorStream(OutputStream err) {
+          this.err = err;
+        }
+
+        @Override
+        public void destroy() {
+
+        }
+      };
+    }
+  }
+
+  private static final Logger LOG = LoggerFactory
+      .getLogger(SSHDeploymentContributorITest.class);
+
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
+
   private class TestProvider extends Provider {
     @Override
     public Topology getTopology() {
@@ -66,38 +176,51 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
   private class TestProviderConfigurer extends ProviderConfigurer {
 
+    private final SSHConfiguration sshConfiguration;
+
+    public TestProviderConfigurer(SSHConfiguration sshConfiguration) {
+      this.sshConfiguration = sshConfiguration;
+    }
+
     @Override
     public SSHConfiguration configure(Provider provider) {
-      return new SSHConfiguration(60022, null, false, null, null, 0,
-          "dc=example,dc=com", "uid=client,dc=example,dc=com", "secret", null,
-          "ldap://localhost:60389", "cn", null, "uid={0},dc=example,dc=com",
-          null, true);
+      return sshConfiguration;
 
     }
   }
-  
+
   private static class UserAuthStaticPassword extends UserAuthPassword {
-    
+
     private static class Factory extends UserAuthPassword.Factory {
-     
+
       @Override
       public UserAuth create() {
         return new UserAuthStaticPassword();
       }
     }
-    
+
     @Override
     public void init(ClientSession session, String service,
         List<Object> identities) throws Exception {
-      super.init(session, service, Arrays.<Object>asList("secret"));
+      super.init(session, service, Arrays.<Object> asList("secret"));
     }
   }
 
   @Test
-  public void testConnection() throws Throwable {
-    
-    SSHDeploymentContributor contributor = new SSHDeploymentContributor(new TestProviderConfigurer());
-    
+  public void testConnectionWithHelp() throws Throwable {
+
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setPort(60022);
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
+    configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
+    configuration.setUseLdapAuth(true);
+    SSHDeploymentContributor contributor = new SSHDeploymentContributor(
+        new TestProviderConfigurer(configuration));
+
     contributor.contributeProvider(null, new TestProvider());
     SshClient client = SshClient.setUpDefaultClient();
     List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(
@@ -105,31 +228,112 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     userAuthFactories.add(new UserAuthStaticPassword.Factory());
     client.setUserAuthFactories(userAuthFactories);
     client.start();
-    ConnectFuture connFuture = client.connect("client", "localhost",
-        60022).await();
-    Assert.assertTrue("Could not connect to server",
-        connFuture.isConnected());
+    ConnectFuture connFuture = client.connect("client", "localhost", 60022)
+        .await();
+    Assert.assertTrue("Could not connect to server", connFuture.isConnected());
     ClientSession session = connFuture.getSession();
     AuthFuture authfuture = session.auth().await();
     Assert.assertTrue(
         "Failed to authenticate to server: " + authfuture.getException(),
         authfuture.isSuccess());
-    ClientChannel channel = session
-        .createChannel(ClientChannel.CHANNEL_SHELL);
-    ByteArrayInputStream in = new ByteArrayInputStream("help\n".getBytes("UTF-8"));
+    ClientChannel channel = session.createChannel(ClientChannel.CHANNEL_SHELL);
+    ByteArrayInputStream in = new ByteArrayInputStream(
+        "help\n".getBytes("UTF-8"));
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
     channel.setOut(out);
     channel.setErr(err);
-    channel.setIn(in);;
+    channel.setIn(in);
+
     channel.open();
-    channel.waitFor(ClientChannel.CLOSED, 0); 
+    channel.waitFor(ClientChannel.CLOSED, 0);
     channel.close(false);
     client.stop();
     contributor.close();
 
-    Assert.assertTrue("Did not receive output",
-        out.toByteArray().length > 0);
+    Assert.assertTrue("Did not receive output", out.toByteArray().length > 0);
   }
 
+  @Test
+  public void testConnectionWithHop() throws Throwable {
+    KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+    kpg.initialize(1024);
+    final KeyPair pair = kpg.generateKeyPair();
+    File publicKeyFile = this.tempFolder.newFile();
+    PEMWriter publicWriter = new PEMWriter(new FileWriter(publicKeyFile));
+    publicWriter.writeObject(pair);
+    publicWriter.close();
+    File privateKeyFile = this.tempFolder.newFile();
+    PEMWriter privateKeyWriter = new PEMWriter(new FileWriter(privateKeyFile));
+    privateKeyWriter.writeObject(pair.getPrivate());
+    privateKeyWriter.close();
+
+    SshServer server = SshServer.setUpDefaultServer();
+    server.setPort(60023);
+    server.setKeyPairProvider(new FileKeyPairProvider(
+        new String[] { publicKeyFile.toString() }));
+    server
+        .setUserAuthFactories(Arrays
+            .<NamedFactory<org.apache.sshd.server.UserAuth>> asList(new UserAuthPublicKey.Factory()));
+    final PipedInputStream inPipe = new PipedInputStream();
+    PipingCommandFactory factory = new PipingCommandFactory(inPipe);
+    server.setShellFactory(factory);
+    server.start();
+
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setPort(60022);
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
+    configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
+    configuration.setUseLdapAuth(true);
+    configuration.setKnoxKeyfile(privateKeyFile.toString());
+
+    SSHDeploymentContributor contributor = new SSHDeploymentContributor(
+        new TestProviderConfigurer(configuration));
+
+    contributor.contributeProvider(null, new TestProvider());
+    SshClient client = SshClient.setUpDefaultClient();
+    List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(
+        1);
+    userAuthFactories.add(new UserAuthStaticPassword.Factory());
+    client.setUserAuthFactories(userAuthFactories);
+    client.start();
+    ConnectFuture connFuture = client.connect("client", "localhost", 60022)
+        .await();
+    Assert.assertTrue("Could not connect to server", connFuture.isConnected());
+    ClientSession session = connFuture.getSession();
+    AuthFuture authfuture = session.auth().await();
+    Assert.assertTrue(
+        "Failed to authenticate to server: " + authfuture.getException(),
+        authfuture.isSuccess());
+    ClientChannel channel = session.createChannel(ClientChannel.CHANNEL_SHELL);
+    ByteArrayInputStream in = new ByteArrayInputStream(
+        ("connect localhost:" + 60023 + "\nmagic word!\n").getBytes("UTF-8"));
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    channel.setOut(out);
+    channel.setErr(err);
+    channel.setIn(in);
+
+    channel.open();
+    channel.waitFor(ClientChannel.CLOSED, 10000);
+    channel.close(true);
+    client.stop();
+    contributor.close();
+    BufferedReader reader = new BufferedReader(new InputStreamReader(inPipe));
+    int readLines = 0;
+    String read = null;
+    assertEquals("connected error", new String(err.toByteArray(), "UTF-8"));
+    assertEquals("connected out", new String(err.toByteArray(), "UTF-8"));
+    while ((read = reader.readLine()) != null) {
+      readLines++;
+    }
+    server.stop(true);
+
+    assertEquals("magic word!", read);
+    assertEquals(2, readLines);
+  }
 }
