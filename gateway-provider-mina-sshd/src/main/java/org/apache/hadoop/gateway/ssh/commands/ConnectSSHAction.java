@@ -103,6 +103,7 @@ public class ConnectSSHAction extends SSHAction {
             error.flush();
             return SSH_ERROR_CODE;
           }
+          session = future.getSession();
           AuthFuture auth = future.getSession().auth();
           if(!auth.await(sshConfiguration.getTunnelConnectTimeout())){
             if (LOG.isInfoEnabled()) {
@@ -116,9 +117,6 @@ public class ConnectSSHAction extends SSHAction {
             error.flush();
             return SSH_ERROR_CODE;
           }
-
-          session = future.getSession();
-          session.auth().await(sshConfiguration.getTunnelConnectTimeout());
         } catch (IOException e) {
           LOG.error("Unable to connect to Knox cluster server.", e);
           return SSH_ERROR_CODE;
