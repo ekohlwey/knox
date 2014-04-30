@@ -1,5 +1,8 @@
 package org.apache.hadoop.gateway.ssh;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.directory.server.annotations.CreateLdapServer;
 import org.apache.directory.server.annotations.CreateTransport;
 import org.apache.directory.server.core.annotations.ApplyLdifs;
@@ -43,51 +46,86 @@ public class KnoxLDAPAuthorizerITest extends AbstractLdapTestUnit {
 
   @Test
   public void testAuthorizesValidUserNoGroups() {
-    SSHConfiguration configuration = new SSHConfiguration(60389, null, false,
-        null, null, -1, "dc=example,dc=com", "uid=client,dc=example,dc=com", "secret", null,
-        "ldap://localhost:60389", "cn", null, null, null, false);
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
+    
     LDAPAuthorizer authorizer = new LDAPAuthorizer(configuration);
-    Assert.assertTrue("User was not authorized",
+    assertTrue("User was not authorized",
         authorizer.authorize("client"));
   }
   
   @Test
   public void testAuthorizesValidUserWithGroup() {
-    SSHConfiguration configuration = new SSHConfiguration(60389, null, false,
-        null, null, -1, "dc=example,dc=com", "uid=client,dc=example,dc=com", "secret", "ou",
-        "ldap://localhost:60389", "cn", null, null, new String[]{"someOU"}, false);
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
+    configuration.setAuthorizationGroupIds(new String[]{"someOU"});
+    configuration.setAuthorizationGroupAttribute("ou");
     LDAPAuthorizer authorizer = new LDAPAuthorizer(configuration);
-    Assert.assertTrue("User was not authorized",
+    assertTrue("User was not authorized",
         authorizer.authorize("client"));
   }
   
   @Test
-  public void testAuthorizesValidUserWithMultipleGroups() {
-    SSHConfiguration configuration = new SSHConfiguration(60389, null, false,
-        null, null, -1, "dc=example,dc=com", "uid=client,dc=example,dc=com", "secret", "ou",
-        "ldap://localhost:60389", "cn", null, null, new String[]{"someOU", "anotherOU"}, false);
+  public void testAuthorizesValidUserWithMultipleAllowedGroups() {
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
+    configuration.setAuthorizationGroupIds(new String[]{"someOU", "anotherOU"});
+    configuration.setAuthorizationGroupAttribute("ou");
     LDAPAuthorizer authorizer = new LDAPAuthorizer(configuration);
-    Assert.assertTrue("User was not authorized",
+    assertTrue("User was not authorized",
         authorizer.authorize("client"));
   }
   
   @Test
   public void doesntAuthorizeInvalidUser() {
-    SSHConfiguration configuration = new SSHConfiguration(60389, null, false,
-        null, null, -1, "dc=example,dc=com", "uid=client,dc=example,dc=com", "secret", "ou",
-        "ldap://localhost:60389", "cn", null, null, new String[]{"someOU", "anotherOU"}, false);
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
     LDAPAuthorizer authorizer = new LDAPAuthorizer(configuration);
-    Assert.assertFalse("User was authorized",
+    assertFalse("User was authorized",
         authorizer.authorize("foobar"));
   }
   
   @Test
   public void doesntAuthorizeInvalidUserNoGroups() {
-    SSHConfiguration configuration = new SSHConfiguration(60389, null, false,
-        null, null, -1, "dc=example,dc=com", "uid=client,dc=example,dc=com", "secret", "ou",
-        "ldap://localhost:60389", "cn", null, null, null, false);
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
     LDAPAuthorizer authorizer = new LDAPAuthorizer(configuration);
-    Assert.assertFalse("User was authorized",
+    assertFalse("User was authorized",
         authorizer.authorize("foobar"));
+  }
+  
+  @Test
+  public void doesntAuthorizeValidUserInvalidGroup() {
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthorizationBase("dc=example,dc=com");
+    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
+    configuration.setAuthorizationPass("secret");
+    configuration.setAuthorizationURL("ldap://localhost:60389");
+    configuration.setAuthorizationNameAttribute("cn");
+    configuration.setAuthorizationGroupIds(new String[]{"notTheGroupTheUserHas"});
+    configuration.setAuthorizationGroupAttribute("ou");
+    LDAPAuthorizer authorizer = new LDAPAuthorizer(configuration);
+    assertFalse("User was authorized",
+        authorizer.authorize("client"));
   }
 }

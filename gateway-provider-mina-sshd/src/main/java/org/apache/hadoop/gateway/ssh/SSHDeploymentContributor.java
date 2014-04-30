@@ -98,7 +98,7 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
       sshd.setNioWorkers(workers);
     }
     sshd.setShellFactory(new KnoxTunnelShellFactory(provider.getTopology()
-        .getName()));
+        .getName(), configuration));
     try {
       sshd.start();
     } catch (IOException e) {

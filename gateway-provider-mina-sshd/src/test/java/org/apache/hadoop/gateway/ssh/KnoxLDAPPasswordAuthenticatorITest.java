@@ -1,5 +1,8 @@
 package org.apache.hadoop.gateway.ssh;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.directory.server.annotations.CreateLdapServer;
 import org.apache.directory.server.annotations.CreateTransport;
 import org.apache.directory.server.core.annotations.ApplyLdifs;
@@ -33,28 +36,40 @@ public class KnoxLDAPPasswordAuthenticatorITest extends AbstractLdapTestUnit {
   @Test
   public void authenticatesValidUser() {
 
-    SSHConfiguration configuration = new SSHConfiguration(0, null, false, null,
-        null, 0, null, null, null, null, null, null, "ldap://localhost:60389",
-        "uid={0},dc=example,dc=com", null, true);
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
+    configuration.setAuthenticationURL("ldap://localhost:60389");
     
     KnoxLDAPPasswordAuthenticator pa = new KnoxLDAPPasswordAuthenticator(
         configuration, new LDAPEscaper(), alwaysAuthorizer);
-    Assert.assertTrue("User was not able to authenticate via bind.",
+    assertTrue("User was not able to authenticate via bind.",
         pa.authenticate("client", "secret", null));
 
   }
   
   @Test
-  public void doesntAuthenticateInvalidUser() {
+  public void doesntAuthenticateInvalidPassword() {
 
-    SSHConfiguration configuration = new SSHConfiguration(0, null, false, null,
-        null, 0, null, null, null, null, null, null, "ldap://localhost:60389",
-        "uid={0},dc=example,dc=com", null, true);
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
+    configuration.setAuthenticationURL("ldap://localhost:60389");
     
     KnoxLDAPPasswordAuthenticator pa = new KnoxLDAPPasswordAuthenticator(
         configuration, new LDAPEscaper(), alwaysAuthorizer);
-    Assert.assertTrue("User was able to authenticate via bind.",
+    assertFalse("User was able to authenticate via bind.",
         pa.authenticate("client", "dsflkjsdf", null));
 
+  }
+  
+  @Test
+  public void doesntAuthenticateInvalidUser() {
+    SSHConfiguration configuration = new SSHConfiguration();
+    configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
+    configuration.setAuthenticationURL("ldap://localhost:60389");
+    
+    KnoxLDAPPasswordAuthenticator pa = new KnoxLDAPPasswordAuthenticator(
+        configuration, new LDAPEscaper(), alwaysAuthorizer);
+    assertFalse("User was able to authenticate via bind.",
+        pa.authenticate("sdafdsaf", "dsflkjsdf", null));
   }
 }
