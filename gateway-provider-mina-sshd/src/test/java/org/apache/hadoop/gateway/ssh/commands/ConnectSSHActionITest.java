@@ -44,6 +44,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ConnectSSHActionITest {
 
+  public static final int SSHD_SERVER_PORT = 60023;
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -64,7 +65,7 @@ public class ConnectSSHActionITest {
     privateKeyWriter.close();
 
     SshServer server = SshServer.setUpDefaultServer();
-    server.setPort(60023);
+    server.setPort(SSHD_SERVER_PORT);
     server.setKeyPairProvider(new FileKeyPairProvider(
         new String[] { publicKeyFile.toString() }));
     server.setPublickeyAuthenticator(new PublickeyAuthenticator() {
@@ -85,7 +86,7 @@ public class ConnectSSHActionITest {
       SSHConfiguration configuration = new SSHConfiguration();
       configuration.setKnoxKeyfile(privateKeyFile.toString());
       configuration.setLoginCommand("");
-      configuration.setTunnelConnectTimeout(0);
+      configuration.setTunnelConnectTimeout(1000);
 
       String simulatedTerminalInput = "magic word!\nanotherline!\n";
       ByteArrayInputStream in = new ByteArrayInputStream(
@@ -103,13 +104,13 @@ public class ConnectSSHActionITest {
       replay(originatingShell, fakeTerminalAuditer);
       SSHConnector connector = new SSHConnector("knoxuser", configuration,
           fakeTerminalAuditer, originatingShell);
-      connector.connectSSH("someuser", "localhost", 60023, new BufferedReader(
+      connector.connectSSH("someuser", "localhost", SSHD_SERVER_PORT, new BufferedReader(
           new InputStreamReader(in)), out, err);
       out.close();
       err.close();
 
-      assertEquals("connected error", new String(err.toByteArray(), "UTF-8"));
-      assertEquals("connected out", new String(err.toByteArray(), "UTF-8"));
+      assertEquals("connected error\n", new String(err.toByteArray(), "UTF-8"));
+      assertEquals("connected out\n", new String(out.toByteArray(), "UTF-8"));
 
       byte[] simulatedInputSink = new byte[simulatedTerminalInput.length()];
       inPipe.read(simulatedInputSink);

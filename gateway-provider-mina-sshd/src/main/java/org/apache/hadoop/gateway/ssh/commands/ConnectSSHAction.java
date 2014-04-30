@@ -72,7 +72,7 @@ public class ConnectSSHAction extends SSHAction {
         BufferedReader inputStream, OutputStream outputStream,
         OutputStream error) {
       ChannelShell channelShell = null;
-      int exit = 0;
+      Integer exit = 0;
       InputStream tee = null;
       SequenceInputStream sudoingInputStream;
       ClientSession session = null;
@@ -108,6 +108,9 @@ public class ConnectSSHAction extends SSHAction {
             error.flush();
             return SSH_ERROR_CODE;
           }
+
+          session = future.getSession();
+          session.auth().await(sshConfiguration.getTunnelConnectTimeout());
         } catch (IOException e) {
           LOG.error("Unable to connect to Knox cluster server.", e);
           return SSH_ERROR_CODE;
@@ -143,8 +146,8 @@ public class ConnectSSHAction extends SSHAction {
             sudoCommandWithUser.getBytes(forName("UTF-8"))), tee);
         channelShell.setIn(sudoingInputStream);
         channelShell.setOut(new NoCloseOutputStream(outputStream));
-        channelShell.setOut(new NoCloseOutputStream(error));
-        try {
+        channelShell.setErr(new NoCloseOutputStream(error));
+        try{
           channelShell.open().await(sshConfiguration.getTunnelConnectTimeout());
         } catch (InterruptedException e) {
           LOG.error(
@@ -158,11 +161,12 @@ public class ConnectSSHAction extends SSHAction {
               e);
           return SSH_ERROR_CODE;
         }
-        channelShell.waitFor(ClientChannel.CLOSED, 0);
+        channelShell.waitFor(ClientChannel.CLOSED,
+            sshConfiguration.getTunnelConnectTimeout());
         exit = channelShell.getExitStatus();
       } finally {
         if (channelShell != null) {
-          channelShell.close(false);
+          channelShell.close(true);
         }
         if (tee != null) {
           try {
@@ -173,7 +177,8 @@ public class ConnectSSHAction extends SSHAction {
           }
         }
       }
-      return exit;
+      //exit is an Integer that can be null, the auto-boxing could cause an NPE
+      return exit == null ? -1 : exit;
     }
   }
 
