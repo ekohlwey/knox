@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.io.SequenceInputStream;
 import java.util.Arrays;
 import java.util.regex.Matcher;
@@ -30,6 +31,7 @@ import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.common.RuntimeSshException;
+import org.apache.sshd.common.SshException;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.util.NoCloseInputStream;
 import org.apache.sshd.common.util.NoCloseOutputStream;
@@ -43,10 +45,154 @@ public class ConnectSSHAction extends SSHAction {
     private static final Logger LOG = LoggerFactory
         .getLogger(SSHConnector.class);
 
-    private final String connectAsUser;
+    public static class SshClientBuilder {
+
+      private final SSHConfiguration sshConfiguration;
+
+      public SshClientBuilder(SSHConfiguration sshConfiguration) {
+        this.sshConfiguration = sshConfiguration;
+      }
+
+      public SshClient build() {
+        SshClient client = SshClient.setUpDefaultClient();
+        client.setKeyPairProvider(new FileKeyPairProvider(
+            new String[] { sshConfiguration.getKnoxKeyfile() }));
+        client.setUserAuthFactories(Arrays.<NamedFactory<UserAuth>>asList(new UserAuthPublicKey.Factory()));
+        return client;
+      }
+    }
+
+    public static class SshClientConnectTimeoutException extends Exception {
+      public SshClientConnectTimeoutException(Throwable exception) {
+        super(exception);
+      }
+    }
+
+    public static class SshClientConnectionFailedException extends Exception {
+      public SshClientConnectionFailedException(Throwable exception) {
+        super(exception);
+      }
+    }
+
+    public static class SshClientConnectionUnauthorizedException extends Exception {
+      public SshClientConnectionUnauthorizedException() {
+      }
+
+      public SshClientConnectionUnauthorizedException(String message,
+                                                      SshException e) {
+        super(message, e);
+      }
+    }
+
+    public static class SshClientConnector {
+
+      private final SSHConfiguration sshConfiguration;
+      private final String connectAsUser;
+
+      public SshClientConnector(SSHConfiguration sshConfiguration,
+                                String connectAsUser) {
+        this.sshConfiguration = sshConfiguration;
+        this.connectAsUser = connectAsUser;
+      }
+
+      public ClientSession connect(SshClient sshClient,
+                                   String host, Integer port)
+          throws IOException, InterruptedException,
+          SshClientConnectTimeoutException, SshClientConnectionFailedException,
+          SshClientConnectionUnauthorizedException {
+        ConnectFuture connectFuture = sshClient.connect(connectAsUser, host, port);
+        if (!connectFuture.await(sshConfiguration.getTunnelConnectTimeout())) {
+          throw new SshClientConnectTimeoutException(connectFuture.getException());
+        }
+        if (!connectFuture.isConnected()) {
+          throw new SshClientConnectionFailedException(connectFuture.getException());
+        }
+        ClientSession session = connectFuture.getSession();
+        AuthFuture auth = session.auth();
+        if(!auth.await(sshConfiguration.getTunnelConnectTimeout())){
+          throw new SshClientConnectTimeoutException(connectFuture.getException());
+        }
+        try {
+          auth.verify();
+        } catch (SshException e) {
+          throw new SshClientConnectionUnauthorizedException(e.getMessage(), e);
+        }
+        return session;
+      }
+    }
+
+    public static class SudoCommandStreamBuilder {
+
+      private final SSHConfiguration sshConfiguration;
+
+      public SudoCommandStreamBuilder(SSHConfiguration sshConfiguration) {
+        this.sshConfiguration = sshConfiguration;
+      }
+
+      public InputStream buildSudoCommand(String sudoToUser, Reader command, PipedInputStream loggingInputStream)
+          throws IOException {
+        InputStream shellStream = new NoCloseInputStream(new ReaderInputStream(
+            command));
+        PipedOutputStream loggingOutputStream = new PipedOutputStream(loggingInputStream);
+        InputStream tee = new TeeInputStream(shellStream, loggingOutputStream, true);
+
+        String sudoCommand = sshConfiguration.getLoginCommand();
+        String sudoCommandWithUser = sudoCommand.replace("{0}", sudoToUser);
+        return new SequenceInputStream(new ByteArrayInputStream(
+            sudoCommandWithUser.getBytes(forName("UTF-8"))), tee);
+      }
+    }
+
+    public static class SshCommandSender {
+
+      private final SSHConfiguration sshConfiguration;
+
+      public SshCommandSender(SSHConfiguration sshConfiguration) {
+        this.sshConfiguration = sshConfiguration;
+      }
+
+      /**
+       * @return Exit status
+       */
+      public Integer sendCommand(ClientSession session,
+                                 InputStream commandInputStream,
+                                 OutputStream stdOut, OutputStream stdErr)
+          throws IOException, InterruptedException {
+        ChannelShell channelShell = null;
+        try {
+          channelShell = session.createShellChannel();
+          channelShell.setIn(commandInputStream);
+          channelShell.setOut(new NoCloseOutputStream(stdOut));
+          channelShell.setErr(new NoCloseOutputStream(stdErr));
+          channelShell.open().await(sshConfiguration.getTunnelConnectTimeout());
+
+          channelShell.waitFor(ClientChannel.CLOSED,
+              sshConfiguration.getTunnelConnectTimeout());
+          return channelShell.getExitStatus();
+        } finally {
+          if (channelShell != null) {
+            channelShell.close(true);
+          }
+        }
+      }
+    }
+
+    static void printErrorMessage(String errMessage, OutputStream error, Throwable cause){
+      if (LOG.isInfoEnabled()) {
+        LOG.info(errMessage, cause);
+      }
+      PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(
+          error));
+      errorOut.println(errMessage);
+      errorOut.close();
+    }
+
     private final TerminalAuditManager auditManager;
     private final KnoxTunnelShell originatingShell;
-    private final SSHConfiguration sshConfiguration;
+    private final SshClientBuilder sshClientBuilder;
+    private final SshClientConnector sshClientConnector;
+    private final SudoCommandStreamBuilder sudoCommandStreamBuilder;
+    private final SshCommandSender sshCommandSender;
 
     public SSHConnector(String connectAsUser,
         SSHConfiguration sshConfiguration, KnoxTunnelShell originatingShell) {
@@ -57,135 +203,95 @@ public class ConnectSSHAction extends SSHAction {
     public SSHConnector(String connectAsUser,
         SSHConfiguration sshConfiguration, TerminalAuditManager auditManager,
         KnoxTunnelShell originatingShell) {
-      this.connectAsUser = connectAsUser;
+      this(auditManager, originatingShell,
+          new SshClientBuilder(sshConfiguration),
+          new SshClientConnector(sshConfiguration, connectAsUser),
+          new SudoCommandStreamBuilder(sshConfiguration),
+          new SshCommandSender(sshConfiguration));
+    }
+
+    SSHConnector(TerminalAuditManager auditManager,
+                 KnoxTunnelShell originatingShell,
+                 SshClientBuilder sshClientBuilder,
+                 SshClientConnector sshClientConnector,
+                 SudoCommandStreamBuilder sudoCommandStreamBuilder,
+                 SshCommandSender sshCommandSender) {
       this.auditManager = auditManager;
       this.originatingShell = originatingShell;
-      this.sshConfiguration = sshConfiguration;
+      this.sshClientBuilder = sshClientBuilder;
+      this.sshClientConnector = sshClientConnector;
+      this.sudoCommandStreamBuilder = sudoCommandStreamBuilder;
+      this.sshCommandSender = sshCommandSender;
     }
 
     public int connectSSH(String sudoToUser, String host, int port,
-        BufferedReader inputStream, OutputStream outputStream,
-        OutputStream error) {
-      ChannelShell channelShell = null;
+                          BufferedReader commandReader,
+                          OutputStream outputStream, OutputStream error) {
       Integer exit = 0;
-      InputStream tee = null;
-      SequenceInputStream sudoingInputStream;
+      SshClient sshClient = null;
       ClientSession session = null;
+      InputStream sudoingInputStream = null;
       try {
-        SshClient client = SshClient.setUpDefaultClient();
-        client.setKeyPairProvider(new FileKeyPairProvider(
-            new String[] { sshConfiguration.getKnoxKeyfile() }));
-        client.setUserAuthFactories(Arrays.<NamedFactory<UserAuth>>asList(new UserAuthPublicKey.Factory()));
-        client.start();
-        try {
-          ConnectFuture future = client.connect(connectAsUser, host, port);
-          if(!future.await(sshConfiguration.getTunnelConnectTimeout())){
-            if (LOG.isInfoEnabled()) {
-              LOG.info("Was unable to connect to server: " + host + ":" + port
-                  + "  connection timed out.", future.getException());
-            }
-            PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(
-                error));
-            errorOut.println("Failed to connect to " + host + ":" + port + " connection timed out.");
-            errorOut.close();
-            error.flush();
-            return SSH_ERROR_CODE;
-          }
-          if (!future.isConnected()) {
-            if (LOG.isInfoEnabled()) {
-              LOG.info("Was unable to connect to server: " + host + ":" + port
-                  + "  connection failed.", future.getException());
-            }
-            PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(
-                error));
-            errorOut.println("Failed to connect to " + host + ":" + port + " connection refused.");
-            errorOut.close();
-            error.flush();
-            return SSH_ERROR_CODE;
-          }
-          session = future.getSession();
-          AuthFuture auth = future.getSession().auth();
-          if(!auth.await(sshConfiguration.getTunnelConnectTimeout())){
-            if (LOG.isInfoEnabled()) {
-              LOG.info("Was unable to connect to server: " + host + ":" + port
-                  + "  connection timed out.", future.getException());
-            }
-            PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(
-                error));
-            errorOut.println("Failed to connect to " + host + ":" + port + " connection timed out.");
-            errorOut.close();
-            error.flush();
-            return SSH_ERROR_CODE;
-          }
-        } catch (IOException e) {
-          LOG.error("Unable to connect to Knox cluster server.", e);
-          return SSH_ERROR_CODE;
-        } catch (InterruptedException e) {
-          LOG.error(
-              "Unexpected interruption connecting to Knox cluster server.", e);
-          Thread.currentThread().interrupt();
-          return SSH_ERROR_CODE;
-        }
+        sshClient = sshClientBuilder.build();
+        sshClient.start();
+        session = sshClientConnector.connect(sshClient, host, port);
 
-        try {
-          channelShell = session.createShellChannel();
-        } catch (IOException e) {
-          LOG.error("Unable to create remote shell on Knox cluster server.", e);
-          return SSH_ERROR_CODE;
-        }
-        InputStream shellStream = new NoCloseInputStream(new ReaderInputStream(
-            inputStream));
         PipedInputStream loggingInputStream = new PipedInputStream();
-        PipedOutputStream loggingOutputStream;
-        try {
-          loggingOutputStream = new PipedOutputStream(loggingInputStream);
-        } catch (IOException e) {
-          LOG.error("Unable to fork input for remote server logging.", e);
-          return SSH_ERROR_CODE;
-        }
-        tee = new TeeInputStream(shellStream, loggingOutputStream, true);
-        auditManager.auditStream(loggingInputStream, host + ":" + port,
-            sudoToUser, originatingShell);
-        String sudoCommand = sshConfiguration.getLoginCommand();
-        String sudoCommandWithUser = sudoCommand.replace("{0}", sudoToUser);
-        sudoingInputStream = new SequenceInputStream(new ByteArrayInputStream(
-            sudoCommandWithUser.getBytes(forName("UTF-8"))), tee);
-        channelShell.setIn(sudoingInputStream);
-        channelShell.setOut(new NoCloseOutputStream(outputStream));
-        channelShell.setErr(new NoCloseOutputStream(error));
-        try{
-          channelShell.open().await(sshConfiguration.getTunnelConnectTimeout());
-        } catch (InterruptedException e) {
-          LOG.error(
-              "Unexpected interruption during logged session to remote Knox cluster server.",
-              e);
-          Thread.currentThread().interrupt();
-          return SSH_ERROR_CODE;
-        } catch (IOException e) {
-          LOG.error(
-              "Unexpected IO exception during logged session to remote Knox cluster server.",
-              e);
-          return SSH_ERROR_CODE;
-        }
-        channelShell.waitFor(ClientChannel.CLOSED,
-            sshConfiguration.getTunnelConnectTimeout());
-        exit = channelShell.getExitStatus();
+        sudoingInputStream = sudoCommandStreamBuilder
+            .buildSudoCommand(sudoToUser, commandReader, loggingInputStream);
+
+        auditManager
+            .auditStream(loggingInputStream, host + ":" + port, sudoToUser,
+                originatingShell);
+
+        exit = sshCommandSender
+            .sendCommand(session, sudoingInputStream, outputStream, error);
+
+      } catch (SshClientConnectTimeoutException e) {
+        printErrorMessage("Failed to connect to " + host + ":" + port +
+            " connection timed out.", error, e.getCause());
+        return SSH_ERROR_CODE;
+      } catch (SshClientConnectionFailedException e) {
+        printErrorMessage("Was unable to connect to server: " + host + ":" + port +
+            "  connection failed.", error, e.getCause());
+        return SSH_ERROR_CODE;
+      } catch (SshClientConnectionUnauthorizedException e) {
+        printErrorMessage("Failed to connect to " + host + ":" + port +
+            " connection unauthorized.", error, e.getCause());
+        return SSH_ERROR_CODE;
+      } catch (IOException e) {
+        LOG.error("Unable to connect to Knox cluster server.", e);
+        return SSH_ERROR_CODE;
+      } catch (InterruptedException e) {
+        LOG.error("Unexpected interruption connecting to Knox cluster server.",
+            e);
+        Thread.currentThread().interrupt();
+        return SSH_ERROR_CODE;
       } finally {
-        if (channelShell != null) {
-          channelShell.close(true);
-        }
-        if (tee != null) {
+        if (sudoingInputStream != null) {
           try {
-            tee.close();
+            sudoingInputStream.close();
           } catch (IOException e) {
-            LOG.error("Unable to close logging tee. "
-                + "Audit information may have been lost.", e);
+            LOG.error("Unable to close logging tee. " +
+                "Audit information may have been lost.", e);
           }
+        }
+        if (session != null) {
+          session.close(true);
+        }
+        if (sshClient != null) {
+          sshClient.close(true);
+        }
+        try {
+          error.flush();
+        } catch (IOException e) {
+          LOG.error("Unable to flush error stream", e);
         }
       }
       //exit is an Integer that can be null, the auto-boxing could cause an NPE
       return exit == null ? -1 : exit;
     }
+
   }
 
   public static int SSH_ERROR_CODE = 255;
