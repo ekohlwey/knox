@@ -23,7 +23,6 @@ import java.util.Arrays;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorITest.PipingCommandFactory;
 import org.apache.hadoop.gateway.ssh.audit.TerminalAuditManager;
-import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction.SSHConnector;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.NamedFactory;

@@ -107,7 +107,7 @@ public class SSHConnector {
         ClientSession session = connectFuture.getSession();
         AuthFuture auth = session.auth();
         if(!auth.await(sshConfiguration.getTunnelConnectTimeout())){
-          throw new SshClientConnectTimeoutException(connectFuture.getException());
+          throw new SshClientConnectTimeoutException(auth.getException());
         }
         try {
           auth.verify();
