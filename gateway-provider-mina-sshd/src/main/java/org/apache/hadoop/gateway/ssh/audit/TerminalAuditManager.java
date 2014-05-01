@@ -5,14 +5,21 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.hadoop.gateway.ssh.ProviderConfigurer;
+import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 
 public class TerminalAuditManager {
 
-  private static final TerminalAuditManager INSTANCE = new TerminalAuditManager();
-  public static final int DEFAULT_QUEUE_SIZE = 1024;
+  private static TerminalAuditManager INSTANCE;
+  private static final Object lock = new Object();
 
-  public static TerminalAuditManager get() {
+  public static TerminalAuditManager get(SSHConfiguration sshConfiguration) {
+    synchronized (lock) {
+      if(INSTANCE == null) {
+        INSTANCE = new TerminalAuditManager(sshConfiguration);
+      }
+    }
     return INSTANCE;
   }
 
@@ -20,9 +27,9 @@ public class TerminalAuditManager {
   private final ArrayBlockingQueue<TerminalAuditWork> terminalWorkQueue;
   private final TerminalAuditThread auditThread;
 
-  private TerminalAuditManager() {
+  private TerminalAuditManager(SSHConfiguration sshConfiguration) {
     this(new TerminalActionAuditRecorder(new TerminalErrorHandler()),
-        DEFAULT_QUEUE_SIZE);
+        sshConfiguration.getQueueSize());
   }
 
   TerminalAuditManager(TerminalActionAuditRecorder terminalActionAuditRecorder, int queueSize) {

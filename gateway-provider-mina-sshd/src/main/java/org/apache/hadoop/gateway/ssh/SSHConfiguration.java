@@ -22,6 +22,7 @@ public class SSHConfiguration {
   private String knoxLoginUser;
   private String loginCommand;
   private long tunnelConnectTimeout;
+  private int queueSize = ProviderConfigurer.DEFAULT_QUEUE_SIZE;
 
   public SSHConfiguration() {
   }
@@ -187,4 +188,11 @@ public class SSHConfiguration {
     return tunnelConnectTimeout;
   }
 
+  public int getQueueSize() {
+    return queueSize;
+  }
+
+  public void setQueueSize(int queueSize) {
+    this.queueSize = queueSize;
+  }
 }

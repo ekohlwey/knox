@@ -192,6 +192,11 @@ public class SSHConnector {
     PrintWriter errorOut = new PrintWriter(new NoCloseOutputStream(error));
     errorOut.println(errMessage);
     errorOut.close();
+    try {
+      error.flush();
+    } catch (IOException e) {
+      LOG.error("Exception occurred flushing Error Outputstream");
+    }
   }
 
   private final TerminalAuditManager auditManager;
@@ -203,11 +208,11 @@ public class SSHConnector {
 
   public SSHConnector(SSHConfiguration sshConfiguration,
                       KnoxTunnelShell originatingShell) {
-    this(sshConfiguration, TerminalAuditManager.get(),
+    this(sshConfiguration, TerminalAuditManager.get(sshConfiguration),
         originatingShell);
   }
 
-  public SSHConnector(SSHConfiguration sshConfiguration,
+  SSHConnector(SSHConfiguration sshConfiguration,
                       TerminalAuditManager auditManager,
                       KnoxTunnelShell originatingShell) {
     this(auditManager, originatingShell, new SshClientBuilder(sshConfiguration),
@@ -288,11 +293,6 @@ public class SSHConnector {
       }
       if (sshClient != null) {
         sshClient.close(true);
-      }
-      try {
-        error.flush();
-      } catch (IOException e) {
-        LOG.error("Unable to flush error stream", e);
       }
     }
     //exit is an Integer that can be null, the auto-boxing could cause an NPE

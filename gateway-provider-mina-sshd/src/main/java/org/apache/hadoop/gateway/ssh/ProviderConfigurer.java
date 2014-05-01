@@ -26,6 +26,7 @@ public class ProviderConfigurer {
   public static final String TUNNEL_KEYFILE = "tunnel-keyfile";
   public static final String TUNNEL_USER = "tunnel-user";
   public static final String LOGIN_COMMAND ="login-command";
+  public static final Integer DEFAULT_QUEUE_SIZE = 1024;
 
   public SSHConfiguration configure(Provider provider) {
     Map<String, String> providerParams = provider.getParams();
