@@ -85,12 +85,9 @@ public class SSHConnector {
   public static class SshClientConnector {
 
     private final SSHConfiguration sshConfiguration;
-    private final String connectAsUser;
 
-    public SshClientConnector(SSHConfiguration sshConfiguration,
-                              String connectAsUser) {
+    public SshClientConnector(SSHConfiguration sshConfiguration) {
       this.sshConfiguration = sshConfiguration;
-      this.connectAsUser = connectAsUser;
     }
 
     public ClientSession connect(SshClient sshClient, String host, Integer port)
@@ -99,7 +96,7 @@ public class SSHConnector {
         SshClientConnectionUnauthorizedException {
 
       ConnectFuture connectFuture =
-          sshClient.connect(connectAsUser, host, port);
+          sshClient.connect(sshConfiguration.getKnoxLoginUser(), host, port);
       if (!connectFuture.await(sshConfiguration.getTunnelConnectTimeout())) {
         throw new SshClientConnectTimeoutException(
             connectFuture.getException());
@@ -204,17 +201,17 @@ public class SSHConnector {
   private final SudoCommandStreamBuilder sudoCommandStreamBuilder;
   private final SshCommandSender sshCommandSender;
 
-  public SSHConnector(String connectAsUser, SSHConfiguration sshConfiguration,
+  public SSHConnector(SSHConfiguration sshConfiguration,
                       KnoxTunnelShell originatingShell) {
-    this(connectAsUser, sshConfiguration, TerminalAuditManager.get(),
+    this(sshConfiguration, TerminalAuditManager.get(),
         originatingShell);
   }
 
-  public SSHConnector(String connectAsUser, SSHConfiguration sshConfiguration,
+  public SSHConnector(SSHConfiguration sshConfiguration,
                       TerminalAuditManager auditManager,
                       KnoxTunnelShell originatingShell) {
     this(auditManager, originatingShell, new SshClientBuilder(sshConfiguration),
-        new SshClientConnector(sshConfiguration, connectAsUser),
+        new SshClientConnector(sshConfiguration),
         new SudoCommandStreamBuilder(sshConfiguration),
         new SshCommandSender(sshConfiguration));
   }

@@ -31,11 +31,13 @@ public class SSHConnectorTest {
 
   @Test(expected = SSHConnector.SshClientConnectTimeoutException.class)
   public void testSshClientConnectorConnectTimeoutException() throws Exception {
-    SSHConfiguration sshConfiguration = new SSHConfiguration();
-    sshConfiguration.setTunnelConnectTimeout(0);
     String user = "user";
     String host = "host";
     Integer port = 22;
+
+    SSHConfiguration sshConfiguration = new SSHConfiguration();
+    sshConfiguration.setTunnelConnectTimeout(0);
+    sshConfiguration.setKnoxLoginUser(user);
 
     SshClient sshClientMock = EasyMock.createMock(SshClient.class);
     ConnectFuture connectFutureMock = EasyMock.createMock(ConnectFuture.class);
@@ -47,7 +49,7 @@ public class SSHConnectorTest {
     EasyMock.replay(sshClientMock, connectFutureMock);
 
     SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration, user);
+        new SshClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock);
@@ -55,11 +57,13 @@ public class SSHConnectorTest {
 
   @Test(expected = SSHConnector.SshClientConnectionFailedException.class)
   public void testSshClientConnectorConnectFailedException() throws Exception {
-    SSHConfiguration sshConfiguration = new SSHConfiguration();
-    sshConfiguration.setTunnelConnectTimeout(0);
     String user = "user";
     String host = "host";
     Integer port = 22;
+
+    SSHConfiguration sshConfiguration = new SSHConfiguration();
+    sshConfiguration.setTunnelConnectTimeout(0);
+    sshConfiguration.setKnoxLoginUser(user);
 
     SshClient sshClientMock = EasyMock.createMock(SshClient.class);
     ConnectFuture connectFutureMock = EasyMock.createMock(ConnectFuture.class);
@@ -72,7 +76,7 @@ public class SSHConnectorTest {
     EasyMock.replay(sshClientMock, connectFutureMock);
 
     SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration, user);
+        new SshClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock);
@@ -80,11 +84,13 @@ public class SSHConnectorTest {
 
   @Test(expected = SSHConnector.SshClientConnectTimeoutException.class)
   public void testSshClientConnectorAuthTimeoutException() throws Exception {
-    SSHConfiguration sshConfiguration = new SSHConfiguration();
-    sshConfiguration.setTunnelConnectTimeout(0);
     String user = "user";
     String host = "host";
     Integer port = 22;
+
+    SSHConfiguration sshConfiguration = new SSHConfiguration();
+    sshConfiguration.setTunnelConnectTimeout(0);
+    sshConfiguration.setKnoxLoginUser(user);
 
     SshClient sshClientMock = EasyMock.createMock(SshClient.class);
     ConnectFuture connectFutureMock = EasyMock.createMock(ConnectFuture.class);
@@ -103,7 +109,7 @@ public class SSHConnectorTest {
         authFutureMock);
 
     SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration, user);
+        new SshClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock, clientSessionMock,
@@ -113,11 +119,13 @@ public class SSHConnectorTest {
   @Test(expected = SSHConnector.SshClientConnectionUnauthorizedException.class)
   public void testSshClientConnectorAuthUnauthorizedException()
       throws Exception {
-    SSHConfiguration sshConfiguration = new SSHConfiguration();
-    sshConfiguration.setTunnelConnectTimeout(0);
     String user = "user";
     String host = "host";
     Integer port = 22;
+
+    SSHConfiguration sshConfiguration = new SSHConfiguration();
+    sshConfiguration.setTunnelConnectTimeout(0);
+    sshConfiguration.setKnoxLoginUser(user);
 
     SshClient sshClientMock = EasyMock.createMock(SshClient.class);
     ConnectFuture connectFutureMock = EasyMock.createMock(ConnectFuture.class);
@@ -137,7 +145,7 @@ public class SSHConnectorTest {
         authFutureMock);
 
     SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration, user);
+        new SshClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock, clientSessionMock,
@@ -146,11 +154,13 @@ public class SSHConnectorTest {
 
   @Test
   public void testSshClientConnector() throws Exception {
-    SSHConfiguration sshConfiguration = new SSHConfiguration();
-    sshConfiguration.setTunnelConnectTimeout(0);
     String user = "user";
     String host = "host";
     Integer port = 22;
+
+    SSHConfiguration sshConfiguration = new SSHConfiguration();
+    sshConfiguration.setTunnelConnectTimeout(0);
+    sshConfiguration.setKnoxLoginUser(user);
 
     SshClient sshClientMock = EasyMock.createMock(SshClient.class);
     ConnectFuture connectFutureMock = EasyMock.createMock(ConnectFuture.class);
@@ -170,7 +180,7 @@ public class SSHConnectorTest {
         authFutureMock);
 
     SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration, user);
+        new SshClientConnector(sshConfiguration);
     ClientSession clientSession =
         sshClientConnector.connect(sshClientMock, host, port);
 

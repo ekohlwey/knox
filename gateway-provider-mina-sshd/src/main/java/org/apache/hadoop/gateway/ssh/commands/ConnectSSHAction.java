@@ -25,18 +25,18 @@ public class ConnectSSHAction extends SSHAction {
   private SSHConnector sshConnector;
   private final String sudoToUser;
 
-  public ConnectSSHAction(String username, SSHConfiguration sshConfiguration,
-      SSHConnector sshConnector) {
+  public ConnectSSHAction(String sudoToUser,
+                          SSHConnector sshConnector) {
     super("connect", "<host>[:<port>]",
         "Connect to a server within the Knox cluster.");
-    this.sudoToUser = username;
+    this.sudoToUser = sudoToUser;
     this.sshConnector = sshConnector;
   }
 
-  public ConnectSSHAction(String username, SSHConfiguration sshConfiguration,
-      KnoxTunnelShell tunnelShell) {
-    this(username, sshConfiguration, new SSHConnector(username,
-        sshConfiguration, tunnelShell));
+  public ConnectSSHAction(String sudoToUser,
+                          SSHConfiguration sshConfiguration,
+                          KnoxTunnelShell tunnelShell) {
+    this(sudoToUser, new SSHConnector(sshConfiguration, tunnelShell));
   }
 
   @Override

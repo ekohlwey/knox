@@ -1,8 +1,10 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
 import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.or;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
@@ -15,6 +17,7 @@ import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PipedInputStream;
+import java.io.StringReader;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
@@ -32,12 +35,15 @@ import org.apache.sshd.server.UserAuth;
 import org.apache.sshd.server.auth.UserAuthPublicKey;
 import org.apache.sshd.server.session.ServerSession;
 import org.bouncycastle.openssl.PEMWriter;
+import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import com.google.common.io.ByteStreams;
 
 @RunWith(JUnit4.class)
 public class ConnectSSHActionITest {
@@ -49,6 +55,9 @@ public class ConnectSSHActionITest {
   @SuppressWarnings("unchecked")
   @Test
   public void testConnect() throws Throwable {
+
+    String knoxuser = "knoxuser";
+    String sudoToUser = "someuser";
 
     KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
     kpg.initialize(1024);
@@ -84,11 +93,12 @@ public class ConnectSSHActionITest {
       SSHConfiguration configuration = new SSHConfiguration();
       configuration.setKnoxKeyfile(privateKeyFile.toString());
       configuration.setLoginCommand("");
+      configuration.setKnoxLoginUser(knoxuser);
       configuration.setTunnelConnectTimeout(1000);
 
       String simulatedTerminalInput = "magic word!\nanotherline!\n";
-      ByteArrayInputStream in = new ByteArrayInputStream(
-          (simulatedTerminalInput).getBytes("UTF-8"));
+      BufferedReader in =
+          new BufferedReader(new StringReader(simulatedTerminalInput));
       ByteArrayOutputStream out = new ByteArrayOutputStream();
       ByteArrayOutputStream err = new ByteArrayOutputStream();
 
@@ -96,19 +106,27 @@ public class ConnectSSHActionITest {
           .createMock(TerminalAuditManager.class);
       KnoxTunnelShell originatingShell = EasyMock
           .createMock(KnoxTunnelShell.class);
-      fakeTerminalAuditer.auditStream(anyObject(InputStream.class),
-          anyObject(String.class), eq("someuser"), eq(originatingShell));
+      Capture<InputStream> commandCapture = new Capture<InputStream>();
+      Capture<String> resourceCapture = new Capture<String>();
+      fakeTerminalAuditer.auditStream(capture(commandCapture),
+          capture(resourceCapture), eq(sudoToUser), eq(originatingShell));
       expectLastCall();
       replay(originatingShell, fakeTerminalAuditer);
-      SSHConnector connector = new SSHConnector("knoxuser", configuration,
-          fakeTerminalAuditer, originatingShell);
-      connector
-          .connectSSH("someuser", "localhost", SSHD_SERVER_PORT, in, out, err);
+
+      SSHConnector sshConnector =
+          new SSHConnector(configuration, fakeTerminalAuditer,
+              originatingShell);
+      ConnectSSHAction connectSSHAction =
+          new ConnectSSHAction(sudoToUser, sshConnector);
+      connectSSHAction.handleCommand(simulatedTerminalInput,
+          "localhost:" + SSHD_SERVER_PORT, in, out, err);
       out.close();
       err.close();
 
       assertEquals("connected error\n", new String(err.toByteArray(), "UTF-8"));
       assertEquals("connected out\n", new String(out.toByteArray(), "UTF-8"));
+      assertEquals(simulatedTerminalInput, new String(ByteStreams.toByteArray(commandCapture.getValue())));
+      assertEquals("localhost:" + SSHD_SERVER_PORT, resourceCapture.getValue());
 
       byte[] simulatedInputSink = new byte[simulatedTerminalInput.length()];
       inPipe.read(simulatedInputSink);
