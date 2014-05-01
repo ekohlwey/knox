@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.apache.sshd.common.RuntimeSshException;
@@ -40,7 +41,7 @@ public class ConnectSSHAction extends SSHAction {
 
   @Override
   public int handleCommand(String command, String commandLine,
-      BufferedReader inputStream, OutputStream outputStream, OutputStream error)
+      BufferedReader commandsReader, OutputStream outputStream, OutputStream error)
       throws IOException {
     matcher.reset(commandLine);
     if (matcher.matches()) {
@@ -53,8 +54,8 @@ public class ConnectSSHAction extends SSHAction {
         port = 22;
       }
       try {
-        return sshConnector.connectSSH(sudoToUser, host, port, inputStream,
-            outputStream, error);
+        return sshConnector.connectSSH(sudoToUser, host, port,
+            new ReaderInputStream(commandsReader), outputStream, error);
       } catch (RuntimeSshException e) {
         LOG.error("Runtime error when connecting to remote Knox server.");
         PrintWriter errorWriter = new PrintWriter(

@@ -102,8 +102,8 @@ public class ConnectSSHActionITest {
       replay(originatingShell, fakeTerminalAuditer);
       SSHConnector connector = new SSHConnector("knoxuser", configuration,
           fakeTerminalAuditer, originatingShell);
-      connector.connectSSH("someuser", "localhost", SSHD_SERVER_PORT, new BufferedReader(
-          new InputStreamReader(in)), out, err);
+      connector
+          .connectSSH("someuser", "localhost", SSHD_SERVER_PORT, in, out, err);
       out.close();
       err.close();
 
