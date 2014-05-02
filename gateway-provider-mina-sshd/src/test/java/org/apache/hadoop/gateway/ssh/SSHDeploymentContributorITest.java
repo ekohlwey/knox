@@ -1,5 +1,6 @@
 package org.apache.hadoop.gateway.ssh;
 
+import static junit.framework.Assert.assertNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -16,6 +17,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -44,7 +46,9 @@ import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
+import org.apache.sshd.server.PublickeyAuthenticator;
 import org.apache.sshd.server.auth.UserAuthPublicKey;
+import org.apache.sshd.server.session.ServerSession;
 import org.bouncycastle.openssl.PEMWriter;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -137,7 +141,6 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
         @Override
         public void setInputStream(final InputStream in) {
-
           this.inputStream = in;
         }
 
@@ -218,6 +221,8 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     configuration.setAuthorizationNameAttribute("cn");
     configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
     configuration.setUseLdapAuth(true);
+    configuration.setTunnelConnectTimeout(1000);
+    configuration.setKnoxLoginUser("knox");
     SSHDeploymentContributor contributor = new SSHDeploymentContributor(
         new TestProviderConfigurer(configuration));
 
@@ -303,6 +308,14 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
     SshServer server = SshServer.setUpDefaultServer();
     server.setPort(60023);
+    server.setPublickeyAuthenticator(new PublickeyAuthenticator() {
+
+      @Override
+      public boolean authenticate(String username, PublicKey key,
+                                  ServerSession session) {
+        return true;
+      }
+    });
     server.setKeyPairProvider(new FileKeyPairProvider(
         new String[] { publicKeyFile.toString() }));
     server
@@ -322,7 +335,10 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     configuration.setAuthorizationNameAttribute("cn");
     configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
     configuration.setUseLdapAuth(true);
+    configuration.setTunnelConnectTimeout(1000);
+    configuration.setKnoxLoginUser("knox");
     configuration.setKnoxKeyfile(privateKeyFile.toString());
+    configuration.setLoginCommand("exec sudo -iu {0} ; logout\n");
 
     SSHDeploymentContributor contributor = new SSHDeploymentContributor(
         new TestProviderConfigurer(configuration));
@@ -357,16 +373,11 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     client.stop();
     contributor.close();
     BufferedReader reader = new BufferedReader(new InputStreamReader(inPipe));
-    int readLines = 0;
-    String read = null;
-    assertEquals("connected error", new String(err.toByteArray(), "UTF-8"));
-    assertEquals("connected out", new String(err.toByteArray(), "UTF-8"));
-    while ((read = reader.readLine()) != null) {
-      readLines++;
-    }
+    assertEquals("connected error\n", new String(err.toByteArray(), "UTF-8"));
+    assertEquals("client@topology > connected out\n", new String(out.toByteArray(), "UTF-8"));
+    assertEquals("exec sudo -iu client ; logout", reader.readLine());
+    assertEquals("magic word!", reader.readLine());
+    assertNull(reader.readLine());
     server.stop(true);
-
-    assertEquals("magic word!", read);
-    assertEquals(2, readLines);
   }
 }

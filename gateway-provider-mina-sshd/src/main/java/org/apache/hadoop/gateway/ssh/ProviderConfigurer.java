@@ -89,7 +89,7 @@ public class ProviderConfigurer {
     }
     String loginCommand = providerParams.get(LOGIN_COMMAND);
     if(loginCommand == null){
-      loginCommand = "exec sudo -iu {0} ; logout";
+      loginCommand = "exec sudo -iu {0}; logout\n";
     }
 
     SSHConfiguration configuration = new SSHConfiguration();
