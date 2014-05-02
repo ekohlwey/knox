@@ -213,7 +213,7 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
   public void testConnectionWithHelp() throws Throwable {
 
     SSHConfiguration configuration = new SSHConfiguration();
-    configuration.setPort(60022);
+    configuration.setPort(61022);
     configuration.setAuthorizationBase("dc=example,dc=com");
     configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
     configuration.setAuthorizationPass("secret");
@@ -233,7 +233,7 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     userAuthFactories.add(new UserAuthStaticPassword.Factory());
     client.setUserAuthFactories(userAuthFactories);
     client.start();
-    ConnectFuture connFuture = client.connect("client", "localhost", 60022)
+    ConnectFuture connFuture = client.connect("client", "localhost", 61022)
         .await();
     Assert.assertTrue("Could not connect to server", connFuture.isConnected());
     ClientSession session = connFuture.getSession();
@@ -327,7 +327,7 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     server.start();
 
     SSHConfiguration configuration = new SSHConfiguration();
-    configuration.setPort(60022);
+    configuration.setPort(62022);
     configuration.setAuthorizationBase("dc=example,dc=com");
     configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
     configuration.setAuthorizationPass("secret");
@@ -350,7 +350,7 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     userAuthFactories.add(new UserAuthStaticPassword.Factory());
     client.setUserAuthFactories(userAuthFactories);
     client.start();
-    ConnectFuture connFuture = client.connect("client", "localhost", 60022)
+    ConnectFuture connFuture = client.connect("client", "localhost", 62022)
         .await();
     Assert.assertTrue("Could not connect to server", connFuture.isConnected());
     ClientSession session = connFuture.getSession();
