@@ -30,6 +30,8 @@ import org.apache.directory.server.core.annotations.CreateDS;
 import org.apache.directory.server.core.annotations.CreatePartition;
 import org.apache.directory.server.core.integ.AbstractLdapTestUnit;
 import org.apache.directory.server.core.integ.FrameworkRunner;
+import org.apache.hadoop.gateway.deploy.DeploymentContext;
+import org.apache.hadoop.gateway.topology.Param;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Topology;
 import org.apache.sshd.ClientChannel;
@@ -50,6 +52,7 @@ import org.apache.sshd.server.PublickeyAuthenticator;
 import org.apache.sshd.server.auth.UserAuthPublicKey;
 import org.apache.sshd.server.session.ServerSession;
 import org.bouncycastle.openssl.PEMWriter;
+import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -169,6 +172,20 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
   public TemporaryFolder tempFolder = new TemporaryFolder();
 
   private class TestProvider extends Provider {
+
+    private TestProvider() {
+      super();
+
+      addParam(buildParam("main.ldapRealm", "org.apache.hadoop.gateway.shirorealm.KnoxLdapRealm"));
+      addParam(buildParam("main.ldapGroupContextFactory", "org.apache.hadoop.gateway.shirorealm.KnoxLdapContextFactory"));
+      addParam(buildParam("main.ldapRealm.userDnTemplate", "uid={0},dc=example,dc=com"));
+      addParam(buildParam("main.ldapRealm.authorizationEnabled", "true"));
+      addParam(buildParam("main.ldapRealm.contextFactory.url", "ldap://localhost:60389"));
+      addParam(buildParam("main.ldapRealm.contextFactory.authenticationMechanism", "simple"));
+      addParam(buildParam("main.ldapRealm.contextFactory.systemUsername", "uid=client,dc=example,dc=com"));
+      addParam(buildParam("main.ldapRealm.contextFactory.systemPassword", "secret"));
+    }
+
     @Override
     public Topology getTopology() {
       Topology topology = new Topology();
@@ -182,6 +199,20 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     private final SSHConfiguration sshConfiguration;
 
     public TestProviderConfigurer(SSHConfiguration sshConfiguration) {
+      this.sshConfiguration = sshConfiguration;
+    }
+
+    @Override
+    public SSHConfiguration configure(Provider provider) {
+      return sshConfiguration;
+    }
+  }
+
+  private static class TestShiroProviderConfigurer extends ProviderConfigurer {
+
+    private final SSHConfiguration sshConfiguration;
+
+    public TestShiroProviderConfigurer(SSHConfiguration sshConfiguration) {
       this.sshConfiguration = sshConfiguration;
     }
 
@@ -209,24 +240,36 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     }
   }
 
+  private static Param buildParam(String name, String value) {
+    Param param = new Param();
+    param.setName(name);
+    param.setValue(value);
+    return param;
+  }
+
   @Test
   public void testConnectionWithHelp() throws Throwable {
 
     SSHConfiguration configuration = new SSHConfiguration();
     configuration.setPort(61022);
-    configuration.setAuthorizationBase("dc=example,dc=com");
-    configuration.setAuthorizationUser("uid=client,dc=example,dc=com");
-    configuration.setAuthorizationPass("secret");
-    configuration.setAuthorizationURL("ldap://localhost:60389");
-    configuration.setAuthorizationNameAttribute("cn");
-    configuration.setAuthenticationPattern("uid={0},dc=example,dc=com");
-    configuration.setUseLdapAuth(true);
+    configuration.setUseShiroAuth(true);
     configuration.setTunnelConnectTimeout(1000);
     configuration.setKnoxLoginUser("knox");
+    String clusterName = "test";
+
+    DeploymentContext deploymentContextMock = EasyMock.createMock(DeploymentContext.class);
+    Topology topologyMock = EasyMock.createMock(Topology.class);
+    EasyMock.expect(deploymentContextMock.getTopology())
+        .andReturn(topologyMock);
+    EasyMock.expect(topologyMock.getName()).andReturn(clusterName);
+    EasyMock.replay(deploymentContextMock);
+
     SSHDeploymentContributor contributor = new SSHDeploymentContributor(
         new TestProviderConfigurer(configuration));
 
-    contributor.contributeProvider(null, new TestProvider());
+    TestProvider provider = new TestProvider();
+
+    contributor.contributeProvider(deploymentContextMock, provider);
     SshClient client = SshClient.setUpDefaultClient();
     List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>(
         1);

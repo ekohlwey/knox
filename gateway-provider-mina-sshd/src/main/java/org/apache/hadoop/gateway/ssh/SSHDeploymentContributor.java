@@ -1,15 +1,21 @@
 package org.apache.hadoop.gateway.ssh;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hadoop.gateway.deploy.DeploymentContext;
 import org.apache.hadoop.gateway.deploy.ProviderDeploymentContributorBase;
+import org.apache.hadoop.gateway.deploy.impl.ShiroConfig;
 import org.apache.hadoop.gateway.descriptor.FilterParamDescriptor;
 import org.apache.hadoop.gateway.descriptor.ResourceDescriptor;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Service;
+import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.config.Ini;
+import org.apache.shiro.config.IniSecurityManagerFactory;
+import org.apache.shiro.mgt.SecurityManager;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.server.UserAuth;
@@ -86,11 +92,23 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
         gssAuthenticator.setServicePrincipalName(servicePrincipal);
       }
       sshd.setGSSAuthenticator(gssAuthenticator);
-    }
-    if (configuration.isUseLdapAuth()) {
+    } else if (configuration.isUseLdapAuth()) {
       userAuthFactories.add(new KnoxUserAuthPassword.Factory());
       sshd.setPasswordAuthenticator(new KnoxLDAPPasswordAuthenticator(
           configuration));
+    } else if (configuration.isUseShiroAuth()) {
+      //set up shiro configuration
+      String clusterName = context.getTopology().getName();
+      ShiroConfig shiroConfig = new ShiroConfig(provider, clusterName);
+      Ini ini = new Ini();
+      ini.load(new StringReader(shiroConfig.toString()));
+      SecurityManager securityManager =
+          new IniSecurityManagerFactory(ini).getInstance();
+      SecurityUtils.setSecurityManager(securityManager);
+
+      userAuthFactories.add(new KnoxUserAuthPassword.Factory());
+      sshd.setPasswordAuthenticator(new KnoxShiroPasswordAuthenicator(
+          new KnoxShiroPasswordAuthenicator.ShiroPasswordAuthenticator()));
     }
     sshd.setUserAuthFactories(userAuthFactories);
     int workers = configuration.getWorkers();

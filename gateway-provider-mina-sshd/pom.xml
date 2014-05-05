@@ -24,6 +24,10 @@
       <groupId>${gateway-group}</groupId>
       <artifactId>gateway-spi</artifactId>
     </dependency>
+    <dependency>
+      <groupId>${gateway-group}</groupId>
+      <artifactId>gateway-provider-security-shiro</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.sshd</groupId>

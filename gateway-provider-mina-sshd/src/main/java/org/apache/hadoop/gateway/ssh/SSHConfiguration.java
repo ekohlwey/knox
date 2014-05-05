@@ -18,6 +18,7 @@ public class SSHConfiguration {
   private String authenticationPattern;
   private boolean useLdapAuth;
   private boolean useKerberosAuth;
+  private boolean useShiroAuth;
   private String knoxKeyfile;
   private String knoxLoginUser;
   private String loginCommand;
@@ -194,5 +195,13 @@ public class SSHConfiguration {
 
   public void setQueueSize(int queueSize) {
     this.queueSize = queueSize;
+  }
+
+  public boolean isUseShiroAuth() {
+    return useShiroAuth;
+  }
+
+  public void setUseShiroAuth(boolean useShiroAuth) {
+    this.useShiroAuth = useShiroAuth;
   }
 }
