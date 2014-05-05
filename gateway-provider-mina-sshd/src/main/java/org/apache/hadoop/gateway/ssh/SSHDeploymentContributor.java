@@ -83,6 +83,7 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
     
     sshd.setUserAuthFactories(userAuthFactories);
 
+    String clusterName = context.getTopology().getName();
     if (configuration.isUseKerberosAuth()) {
       userAuthFactories.add(new KnoxUserAuthGSS.Factory());
       GSSAuthenticator gssAuthenticator = new GSSAuthenticator();
@@ -98,7 +99,6 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
           configuration));
     } else if (configuration.isUseShiroAuth()) {
       //set up shiro configuration
-      String clusterName = context.getTopology().getName();
       ShiroConfig shiroConfig = new ShiroConfig(provider, clusterName);
       Ini ini = new Ini();
       ini.load(new StringReader(shiroConfig.toString()));
@@ -115,8 +115,9 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
     if (workers > 0) {
       sshd.setNioWorkers(workers);
     }
-    sshd.setShellFactory(new KnoxTunnelShellFactory(provider.getTopology()
-        .getName(), configuration));
+    sshd.setShellFactory(
+        new KnoxTunnelShellFactory(clusterName,
+            configuration));
     try {
       sshd.start();
     } catch (IOException e) {

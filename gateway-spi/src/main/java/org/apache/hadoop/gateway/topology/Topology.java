@@ -112,7 +112,6 @@ public class Topology {
       providerMap.put( role, nameMap );
     }
     nameMap.put( provider.getName(), provider );
-    provider.setTopology(this);
   }
 
 }
