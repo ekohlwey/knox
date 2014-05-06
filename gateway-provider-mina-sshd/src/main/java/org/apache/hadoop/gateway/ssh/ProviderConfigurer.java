@@ -22,94 +22,111 @@ public class ProviderConfigurer {
   public static final String LDAP_AUTHENTICATION_NAME_PATTERN = "ldap-bind-pattern";
   public static final String LDAP_AUTHORIZATION_GROUP_IDS = "ldap-authorization-groups";
   public static final String LDAP_AUTHENTICATION_ENABLED = "ldap-authentication-enabled";
+  public static final String SHIRO_AUTHENTICATION_ENABLED = "shiro-authentication-enabled";
   public static final String TRUE = "true";
   public static final String TUNNEL_KEYFILE = "tunnel-keyfile";
   public static final String TUNNEL_USER = "tunnel-user";
+  public static final String TUNNEL_TIMEOUT = "tunnel-timeout";
   public static final String LOGIN_COMMAND ="login-command";
   public static final Integer DEFAULT_QUEUE_SIZE = 1024;
 
   public SSHConfiguration configure(Provider provider) {
     Map<String, String> providerParams = provider.getParams();
-    // ssh port not optional
-    int port = Integer.parseInt(providerParams.get(SSH_PORT));
-    // ssh fingerprint -> has default
-    String sshLocation = providerParams.get(SSH_FINGERPRINT_LOCATION);
-    if (sshLocation == null) {
-      sshLocation = "/var/run/knox/ssh.fingerprint";
-    }
-    // use kerberos -> default is false
-    String useKerberosStr = providerParams.get(KERBEROS_ENABLED);
-    String servicePrincipal = null;
-    String keytabLocation = null;
-    boolean useKerberos = false;
-    if (useKerberos = (useKerberosStr != null && useKerberosStr.equals(TRUE))) {
-      // keytab location -> has default
-      keytabLocation = providerParams.get(KEYTAB_LOCATION);
-      if (keytabLocation == null) {
-        keytabLocation = "/etc/knox/conf/knox.service.keytab";
-      }
-      // principal -> not optional if kerberos is on
-      servicePrincipal = providerParams.get(PROVIDER_PRINCIPAL);
-    }
-    // workers -> optional
-    String workersString = providerParams.get(WORKERS);
-    int workers;
-    if (workersString != null) {
-      workers = Integer.parseInt(workersString);
-    } else {
-      workers = -1;
-    }
-    // ldap authorization base DN -> no default
-    String authorizationBase = providerParams.get(LDAP_AUTHORIZATION_BASE_DN);
-    String authorizationUser = providerParams.get(LDAP_AUTHORIZATION_USER);
-    String authorizationPass = providerParams.get(LDAP_AUTHORIZATION_PASSWORD);
-    String authorizationGroupAttribute = providerParams
-        .get(LDAP_AUTHORIZATION_ATTRIBUTE);
-    String authorizationURL = providerParams.get(LDAP_AUTHORIZATION_URL);
-    String authorizationNameAttribute = providerParams
-        .get(LDAP_AUTHORIZATION_NAME_ATTRIBUTE);
-    String[] authorizationGroups = providerParams.get(
-        LDAP_AUTHORIZATION_GROUP_IDS).split(";");
-    String ldapEnabledString = providerParams.get(LDAP_AUTHENTICATION_ENABLED);
-    boolean ldapEnabled = ldapEnabledString == null
-        || ldapEnabledString.toLowerCase().equals(TRUE);
-    String authenticationURL = null;
-    String authPattern = null;
-    if (ldapEnabled) {
-      authenticationURL = providerParams.get(LDAP_AUTHENTICATION_URL);
-      authPattern = providerParams.get(LDAP_AUTHENTICATION_NAME_PATTERN);
-    }
-    String knoxKeyfile = providerParams.get(TUNNEL_KEYFILE);
-    if(knoxKeyfile == null){
-      knoxKeyfile = "/etc/knox/conf/id_knox.pem";
-    }
-    String knoxLoginUser = providerParams.get(TUNNEL_USER );
-    if(knoxLoginUser == null){
-      knoxLoginUser = "knox";
-    }
-    String loginCommand = providerParams.get(LOGIN_COMMAND);
-    if(loginCommand == null){
-      loginCommand = "exec sudo -iu {0}; logout\n";
-    }
 
-    SSHConfiguration configuration = new SSHConfiguration();
-    configuration.setPort(port);
-    configuration.setWorkers(workers);
-    configuration.setUseKerberosAuth(useKerberos);
-    configuration.setServicePrincipal(servicePrincipal);
-    configuration.setAuthenticationPattern(authPattern);
-    configuration.setAuthenticationURL(authenticationURL);
-    configuration.setAuthorizationBase(authorizationBase);
-    configuration.setAuthorizationGroupAttribute(authorizationGroupAttribute);
-    configuration.setAuthorizationGroupIds(authorizationGroups);
-    configuration.setAuthorizationNameAttribute(authorizationNameAttribute);
-    configuration.setAuthorizationPass(authorizationPass);
-    configuration.setAuthorizationURL(authorizationURL);
-    configuration.setAuthorizationUser(authorizationUser);
-    configuration.setKeytabLocation(keytabLocation);
-    configuration.setKnoxKeyfile(knoxKeyfile);
-    configuration.setKnoxLoginUser(knoxLoginUser);
-    configuration.setLoginCommand(loginCommand);
-    return configuration;
+    //check enabled auths
+    boolean useKerberos = TRUE.equalsIgnoreCase(providerParams.get(KERBEROS_ENABLED));
+    boolean ldapEnabled = TRUE.equalsIgnoreCase(providerParams.get(LDAP_AUTHENTICATION_ENABLED));
+    boolean shiroEnabled = TRUE.equalsIgnoreCase(providerParams.get(SHIRO_AUTHENTICATION_ENABLED));
+
+    if(shiroEnabled || ldapEnabled || useKerberos) {
+      SSHConfiguration configuration = new SSHConfiguration();
+
+      // ssh port not optional
+      configuration.setPort(Integer.parseInt(providerParams.get(SSH_PORT)));
+      // ssh fingerprint -> has default
+      String sshLocation = providerParams.get(SSH_FINGERPRINT_LOCATION);
+      if (sshLocation == null) {
+        sshLocation = "/var/run/knox/ssh.fingerprint";
+      }
+      configuration.setSshFingerprintLocation(sshLocation);
+
+      // use kerberos -> default is false
+      configuration.setUseKerberosAuth(useKerberos);
+      if (useKerberos) {
+        // keytab location -> has default
+        String keytabLocation = providerParams.get(KEYTAB_LOCATION);
+        if (keytabLocation == null) {
+          keytabLocation = "/etc/knox/conf/knox.service.keytab";
+        }
+        configuration.setKeytabLocation(keytabLocation);
+        // principal -> not optional if kerberos is on
+        configuration.setServicePrincipal(providerParams.get(PROVIDER_PRINCIPAL));
+      }
+
+      // workers -> optional
+      String workersString = providerParams.get(WORKERS);
+      int workers;
+      if (workersString != null) {
+        workers = Integer.parseInt(workersString);
+      } else {
+        workers = -1;
+      }
+      configuration.setWorkers(workers);
+
+      // ldap authorization base DN -> no default
+      configuration.setUseLdapAuth(ldapEnabled);
+      if(ldapEnabled) {
+        configuration.setAuthorizationBase(
+            providerParams.get(LDAP_AUTHORIZATION_BASE_DN));
+        configuration.setAuthorizationUser(
+            providerParams.get(LDAP_AUTHORIZATION_USER));
+        configuration.setAuthorizationPass(
+            providerParams.get(LDAP_AUTHORIZATION_PASSWORD));
+        configuration.setAuthorizationGroupAttribute(providerParams.get(LDAP_AUTHORIZATION_ATTRIBUTE));
+        configuration.setAuthorizationURL(
+            providerParams.get(LDAP_AUTHORIZATION_URL));
+        configuration.setAuthorizationNameAttribute(
+            providerParams.get(LDAP_AUTHORIZATION_NAME_ATTRIBUTE));
+        String authorizationGroupIdsStr = providerParams.get(LDAP_AUTHORIZATION_GROUP_IDS);
+        if(authorizationGroupIdsStr != null) {
+          configuration
+              .setAuthorizationGroupIds(authorizationGroupIdsStr.split(";"));
+        }
+        configuration.setAuthenticationURL(
+            providerParams.get(LDAP_AUTHENTICATION_URL));
+        configuration.setAuthenticationPattern(
+            providerParams.get(LDAP_AUTHENTICATION_NAME_PATTERN));
+      }
+
+      String knoxKeyfile = providerParams.get(TUNNEL_KEYFILE);
+      if(knoxKeyfile == null){
+        knoxKeyfile = "/etc/knox/conf/id_knox.pem";
+      }
+      configuration.setKnoxKeyfile(knoxKeyfile);
+
+      String knoxLoginUser = providerParams.get(TUNNEL_USER );
+      if(knoxLoginUser == null){
+        knoxLoginUser = "knox";
+      }
+      configuration.setKnoxLoginUser(knoxLoginUser);
+
+      String loginCommand = providerParams.get(LOGIN_COMMAND);
+      if(loginCommand == null){
+        loginCommand = "exec sudo -iu {0}; logout\n";
+      }
+      configuration.setLoginCommand(loginCommand);
+
+      String tunnelTimeoutStr = providerParams.get(TUNNEL_TIMEOUT);
+      if(tunnelTimeoutStr == null) {
+        tunnelTimeoutStr = "1000"; //default 1 sec
+      }
+      configuration.setTunnelConnectTimeout(Integer.parseInt(tunnelTimeoutStr));
+
+      configuration.setUseShiroAuth(shiroEnabled);
+
+      return configuration;
+    } else {
+      throw new IllegalArgumentException("Configuration does not include any authentication mechanisms");
+    }
   }
 }

@@ -40,11 +40,13 @@ public class ShellInterpreterThread extends Thread implements Closeable {
 
     // New lines are not handled correctly with printstream
     PrintStream consolePrinter = new PrintStream(new NoCloseOutputStream(
-        knoxShell.getOutputStream()));
+        output));
     try {
       while (run) {
         consolePrinter.printf("%s@%s > ", knoxShell.getUsername(),
             knoxShell.getTopologyName());
+        consolePrinter.flush();
+
         String line = null;
         try {
           line = inputReader.readLine();
@@ -53,6 +55,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
           exitHandler.failure(e);
           return;
         }
+
         if (line == null) {
           run = false;
           continue;

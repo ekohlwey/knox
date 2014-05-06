@@ -3,6 +3,7 @@ package org.apache.hadoop.gateway.ssh;
 import static org.junit.Assert.*;
 
 import org.apache.shiro.authc.AuthenticationException;
+import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.subject.Subject;
 import org.easymock.Capture;
@@ -31,7 +32,15 @@ public class ShiroPasswordAuthenticatorTest {
 
     Subject subjectMock = EasyMock.createMock(Subject.class);
     EasyMock.expect(subjectMock.isAuthenticated()).andReturn(false);
-    Capture<UsernamePasswordToken> tokenCapture = new Capture<UsernamePasswordToken>();
+    final String[] userPwd = new String[2];
+    Capture<UsernamePasswordToken> tokenCapture = new Capture<UsernamePasswordToken>() {
+      @Override
+      public void setValue(UsernamePasswordToken value) {
+        super.setValue(value);
+        userPwd[0] = value.getUsername();
+        userPwd[1] = new String(value.getPassword());
+      }
+    };
     subjectMock.login(EasyMock.capture(tokenCapture));
     EasyMock.expectLastCall();
     EasyMock.replay(subjectMock);
@@ -46,8 +55,11 @@ public class ShiroPasswordAuthenticatorTest {
     EasyMock.verify(subjectMock);
 
     UsernamePasswordToken usernamePasswordToken = tokenCapture.getValue();
-    assertEquals(user, usernamePasswordToken.getUsername());
-    assertArrayEquals(pwd.toCharArray(), usernamePasswordToken.getPassword());
+    //verify that the token has been cleared
+    assertNull(usernamePasswordToken.getUsername());
+    assertNull(usernamePasswordToken.getPassword());
+    assertEquals(user, userPwd[0]);
+    assertEquals(pwd, userPwd[1]);
   }
 
   @Test
@@ -55,7 +67,15 @@ public class ShiroPasswordAuthenticatorTest {
 
     Subject subjectMock = EasyMock.createMock(Subject.class);
     EasyMock.expect(subjectMock.isAuthenticated()).andReturn(false);
-    Capture<UsernamePasswordToken> tokenCapture = new Capture<UsernamePasswordToken>();
+    final String[] userPwd = new String[2];
+    Capture<UsernamePasswordToken> tokenCapture = new Capture<UsernamePasswordToken>() {
+      @Override
+      public void setValue(UsernamePasswordToken value) {
+        super.setValue(value);
+        userPwd[0] = value.getUsername();
+        userPwd[1] = new String(value.getPassword());
+      }
+    };
     subjectMock.login(EasyMock.capture(tokenCapture));
     EasyMock.expectLastCall().andThrow(new AuthenticationException());
     EasyMock.replay(subjectMock);
@@ -70,7 +90,10 @@ public class ShiroPasswordAuthenticatorTest {
     EasyMock.verify(subjectMock);
 
     UsernamePasswordToken usernamePasswordToken = tokenCapture.getValue();
-    assertEquals(user, usernamePasswordToken.getUsername());
-    assertArrayEquals(pwd.toCharArray(), usernamePasswordToken.getPassword());
+    //verify that the token has been cleared
+    assertNull(usernamePasswordToken.getUsername());
+    assertNull(usernamePasswordToken.getPassword());
+    assertEquals(user, userPwd[0]);
+    assertEquals(pwd, userPwd[1]);
   }
 }

@@ -229,18 +229,18 @@ public class SSHConnectorTest {
     CloseFuture closeFutureMock = EasyMock.createMock(CloseFuture.class);
     EasyMock.expect(clientSessionMock.createShellChannel())
         .andReturn(channelShellMock);
-    channelShellMock.setIn(commandStream);
+    channelShellMock.setIn(EasyMock.anyObject(InputStream.class));
     EasyMock.expectLastCall();
-    channelShellMock.setOut((OutputStream) EasyMock.anyObject());
+    channelShellMock.setOut(EasyMock.anyObject(OutputStream.class));
     EasyMock.expectLastCall();
-    channelShellMock.setErr((OutputStream) EasyMock.anyObject());
+    channelShellMock.setErr(EasyMock.anyObject(OutputStream.class));
     EasyMock.expectLastCall();
     EasyMock.expect(channelShellMock.open()).andReturn(openFuture);
     EasyMock
         .expect(openFuture.await(sshConfiguration.getTunnelConnectTimeout()))
         .andReturn(true);
     EasyMock.expect(channelShellMock.waitFor(ClientChannel.CLOSED,
-        sshConfiguration.getTunnelConnectTimeout())).andReturn(0);
+        sshConfiguration.getTunnelConnectTimeout())).andReturn(ClientChannel.CLOSED);
     EasyMock.expect(channelShellMock.getExitStatus()).andReturn(0);
     EasyMock.expect(channelShellMock.close(true)).andReturn(closeFutureMock);
 
@@ -272,11 +272,11 @@ public class SSHConnectorTest {
     CloseFuture closeFutureMock = EasyMock.createMock(CloseFuture.class);
     EasyMock.expect(clientSessionMock.createShellChannel())
         .andReturn(channelShellMock);
-    channelShellMock.setIn(commandStream);
+    channelShellMock.setIn(EasyMock.anyObject(InputStream.class));
     EasyMock.expectLastCall();
-    channelShellMock.setOut((OutputStream) EasyMock.anyObject());
+    channelShellMock.setOut(EasyMock.anyObject(OutputStream.class));
     EasyMock.expectLastCall();
-    channelShellMock.setErr((OutputStream) EasyMock.anyObject());
+    channelShellMock.setErr(EasyMock.anyObject(OutputStream.class));
     EasyMock.expectLastCall();
     EasyMock.expect(channelShellMock.open()).andReturn(openFuture);
     EasyMock

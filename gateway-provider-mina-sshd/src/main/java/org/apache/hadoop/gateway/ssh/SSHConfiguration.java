@@ -1,5 +1,7 @@
 package org.apache.hadoop.gateway.ssh;
 
+import java.util.Arrays;
+
 public class SSHConfiguration {
 
   private int port;
@@ -203,5 +205,34 @@ public class SSHConfiguration {
 
   public void setUseShiroAuth(boolean useShiroAuth) {
     this.useShiroAuth = useShiroAuth;
+  }
+
+  @Override
+  public String toString() {
+    return "SSHConfiguration{" +
+        "port=" + port +
+        ", sshFingerprintLocation='" + sshFingerprintLocation + '\'' +
+        ", keytabLocation='" + keytabLocation + '\'' +
+        ", servicePrincipal='" + servicePrincipal + '\'' +
+        ", workers=" + workers +
+        ", authorizationBase='" + authorizationBase + '\'' +
+        ", authorizationUser='" + authorizationUser + '\'' +
+        ", authorizationPass='" + authorizationPass + '\'' +
+        ", authorizationGroupAttribute='" + authorizationGroupAttribute + '\'' +
+        ", authorizationURL='" + authorizationURL + '\'' +
+        ", authorizationNameAttribute='" + authorizationNameAttribute + '\'' +
+        ", authenticationURL='" + authenticationURL + '\'' +
+        ", authorizationGroupIds=" +
+        Arrays.toString(authorizationGroupIds) +
+        ", authenticationPattern='" + authenticationPattern + '\'' +
+        ", useLdapAuth=" + useLdapAuth +
+        ", useKerberosAuth=" + useKerberosAuth +
+        ", useShiroAuth=" + useShiroAuth +
+        ", knoxKeyfile='" + knoxKeyfile + '\'' +
+        ", knoxLoginUser='" + knoxLoginUser + '\'' +
+        ", loginCommand='" + loginCommand + '\'' +
+        ", tunnelConnectTimeout=" + tunnelConnectTimeout +
+        ", queueSize=" + queueSize +
+        '}';
   }
 }

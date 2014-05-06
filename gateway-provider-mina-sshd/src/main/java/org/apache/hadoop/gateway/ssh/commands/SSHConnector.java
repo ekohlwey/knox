@@ -1,9 +1,8 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
 import static java.nio.charset.Charset.forName;
-import static org.apache.hadoop.gateway.ssh.commands.SSHConstants.*;
+import static org.apache.hadoop.gateway.ssh.commands.SSHConstants.SSH_ERROR_CODE;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,11 +10,9 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintWriter;
-import java.io.Reader;
 import java.io.SequenceInputStream;
 import java.util.Arrays;
 
-import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.io.input.TeeInputStream;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.audit.TerminalAuditManager;
@@ -162,7 +159,7 @@ public class SSHConnector {
       ChannelShell channelShell = null;
       try {
         channelShell = session.createShellChannel();
-        channelShell.setIn(commandInputStream);
+        channelShell.setIn(new NoCloseInputStream(commandInputStream));
         channelShell.setOut(new NoCloseOutputStream(stdOut));
         channelShell.setErr(new NoCloseOutputStream(stdErr));
         OpenFuture openFuture = channelShell.open();
@@ -173,8 +170,11 @@ public class SSHConnector {
               openFuture.getException());
         }
 
-        channelShell.waitFor(ClientChannel.CLOSED,
-            sshConfiguration.getTunnelConnectTimeout());
+        boolean closed = false;
+        while(!closed) {
+          int status = channelShell.waitFor(ClientChannel.CLOSED, sshConfiguration.getTunnelConnectTimeout());
+          closed = (status & ClientChannel.CLOSED) != 0; //closed
+        }
         return channelShell.getExitStatus();
       } finally {
         if (channelShell != null) {
@@ -236,7 +236,7 @@ public class SSHConnector {
   }
 
   public int connectSSH(String sudoToUser, String host, int port,
-                        InputStream commandReader, OutputStream outputStream,
+                        InputStream commandStream, OutputStream outputStream,
                         OutputStream error) {
     Integer exit = 0;
     SshClient sshClient = null;
@@ -249,7 +249,7 @@ public class SSHConnector {
 
       PipedInputStream loggingInputStream = new PipedInputStream();
       sudoingInputStream = sudoCommandStreamBuilder
-          .buildSudoCommand(sudoToUser, commandReader, loggingInputStream);
+          .buildSudoCommand(sudoToUser, commandStream, loggingInputStream);
 
       auditManager
           .auditStream(loggingInputStream, host + ":" + port, sudoToUser,

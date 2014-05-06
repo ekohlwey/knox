@@ -1,6 +1,5 @@
 package org.apache.hadoop.gateway.ssh;
 
-import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +9,7 @@ import org.apache.hadoop.gateway.deploy.ProviderDeploymentContributorBase;
 import org.apache.hadoop.gateway.deploy.impl.ShiroConfig;
 import org.apache.hadoop.gateway.descriptor.FilterParamDescriptor;
 import org.apache.hadoop.gateway.descriptor.ResourceDescriptor;
+import org.apache.hadoop.gateway.i18n.messages.MessagesFactory;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Service;
 import org.apache.shiro.SecurityUtils;
@@ -24,11 +24,15 @@ import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 
 public class SSHDeploymentContributor extends ProviderDeploymentContributorBase {
 
+  private static SshGatewayMessages LOG =
+      MessagesFactory.get(SshGatewayMessages.class);
+
   private final Thread shutdownHandler = new Thread() {
     public void run() {
       if (sshd != null) {
         try {
           sshd.stop(true);
+          LOG.stoppedGateway();
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
         }
@@ -75,14 +79,14 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
       throws SSHServerException {
     SSHConfiguration configuration = configurer.configure(provider);
 
+    LOG.configuration(configuration);
+
     sshd = SshServer.setUpDefaultServer();
     sshd.setPort(configuration.getPort());
     sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(configuration
         .getSshFingerprintLocation()));
     List<NamedFactory<UserAuth>> userAuthFactories = new ArrayList<NamedFactory<UserAuth>>();
     
-    sshd.setUserAuthFactories(userAuthFactories);
-
     String clusterName = context.getTopology().getName();
     if (configuration.isUseKerberosAuth()) {
       userAuthFactories.add(new KnoxUserAuthGSS.Factory());
@@ -93,10 +97,12 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
         gssAuthenticator.setServicePrincipalName(servicePrincipal);
       }
       sshd.setGSSAuthenticator(gssAuthenticator);
-    } else if (configuration.isUseLdapAuth()) {
+    }
+
+    if (configuration.isUseLdapAuth()) {
       userAuthFactories.add(new KnoxUserAuthPassword.Factory());
-      sshd.setPasswordAuthenticator(new KnoxLDAPPasswordAuthenticator(
-          configuration));
+      sshd.setPasswordAuthenticator(
+          new KnoxLDAPPasswordAuthenticator(configuration));
     } else if (configuration.isUseShiroAuth()) {
       //set up shiro configuration
       ShiroConfig shiroConfig = new ShiroConfig(provider, clusterName);
@@ -120,7 +126,10 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
             configuration));
     try {
       sshd.start();
-    } catch (IOException e) {
+
+      LOG.startedGateway(configuration.getPort());
+    } catch (Throwable e) {
+      LOG.failedToStartGateway(e);
       throw new SSHServerException(e);
     } finally {
       Runtime.getRuntime().addShutdownHook(shutdownHandler);

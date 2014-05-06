@@ -10,16 +10,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.hadoop.gateway.i18n.messages.MessagesFactory;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
+import org.apache.hadoop.gateway.ssh.SshGatewayMessages;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.apache.sshd.common.RuntimeSshException;
 import org.apache.sshd.common.util.NoCloseOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ConnectSSHAction extends SSHAction {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SSHAction.class);
+  private static final SshGatewayMessages LOG = MessagesFactory.get(SshGatewayMessages.class);
   private Matcher matcher = Pattern.compile(
       "\\s*([a-zA-Z0-9.]+)(?::([0-9]+))?\\s*$").matcher("");
   private SSHConnector sshConnector;
@@ -57,7 +57,7 @@ public class ConnectSSHAction extends SSHAction {
         return sshConnector.connectSSH(sudoToUser, host, port,
             new ReaderInputStream(commandsReader), outputStream, error);
       } catch (RuntimeSshException e) {
-        LOG.error("Runtime error when connecting to remote Knox server.");
+        LOG.failedConnectingToRemote(host + ":" + port, e);
         PrintWriter errorWriter = new PrintWriter(
             new NoCloseOutputStream(error));
         errorWriter.println("Unable to connect to " + host + " on port "

@@ -176,14 +176,22 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     private TestProvider() {
       super();
 
-      addParam(buildParam("main.ldapRealm", "org.apache.hadoop.gateway.shirorealm.KnoxLdapRealm"));
-      addParam(buildParam("main.ldapGroupContextFactory", "org.apache.hadoop.gateway.shirorealm.KnoxLdapContextFactory"));
-      addParam(buildParam("main.ldapRealm.userDnTemplate", "uid={0},dc=example,dc=com"));
+      addParam(buildParam("main.ldapRealm",
+          "org.apache.hadoop.gateway.shirorealm.KnoxLdapRealm"));
+      addParam(buildParam("main.ldapGroupContextFactory",
+          "org.apache.hadoop.gateway.shirorealm.KnoxLdapContextFactory"));
+      addParam(buildParam("main.ldapRealm.userDnTemplate",
+          "uid={0},dc=example,dc=com"));
       addParam(buildParam("main.ldapRealm.authorizationEnabled", "true"));
-      addParam(buildParam("main.ldapRealm.contextFactory.url", "ldap://localhost:60389"));
-      addParam(buildParam("main.ldapRealm.contextFactory.authenticationMechanism", "simple"));
-      addParam(buildParam("main.ldapRealm.contextFactory.systemUsername", "uid=client,dc=example,dc=com"));
-      addParam(buildParam("main.ldapRealm.contextFactory.systemPassword", "secret"));
+      addParam(buildParam("main.ldapRealm.contextFactory.url",
+          "ldap://localhost:60389"));
+      addParam(
+          buildParam("main.ldapRealm.contextFactory.authenticationMechanism",
+              "simple"));
+      addParam(buildParam("main.ldapRealm.contextFactory.systemUsername",
+          "uid=client,dc=example,dc=com"));
+      addParam(
+          buildParam("main.ldapRealm.contextFactory.systemPassword", "secret"));
     }
 
   }
@@ -404,16 +412,22 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
         "Failed to authenticate to server: " + authfuture.getException(),
         authfuture.isSuccess());
     ClientChannel channel = session.createChannel(ClientChannel.CHANNEL_SHELL);
-    ByteArrayInputStream in = new ByteArrayInputStream(
-        ("connect localhost:" + 60023 + "\nmagic word!\n").getBytes("UTF-8"));
+    PipedInputStream in = new PipedInputStream();
+    PipedOutputStream commands = new PipedOutputStream(in);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
     channel.setOut(out);
     channel.setErr(err);
     channel.setIn(in);
 
-    channel.open();
-    channel.waitFor(ClientChannel.CLOSED, 10000);
+    channel.open().await();
+    commands.write(("connect localhost:" + 60023 + "\n").getBytes("UTF-8"));
+    channel.waitFor(ClientChannel.CLOSED, 2000);
+    //verifying that the connection is still alive
+    commands.write("magic word!\n".getBytes("UTF-8"));
+    channel.waitFor(ClientChannel.CLOSED, 1000);
+    commands.write("another line\n".getBytes("UTF-8"));
+    channel.waitFor(ClientChannel.CLOSED, 1000);
     channel.close(true);
     client.stop();
     contributor.close();
@@ -422,6 +436,7 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     assertEquals("client@topology > connected out\n", new String(out.toByteArray(), "UTF-8"));
     assertEquals("exec sudo -iu client ; logout", reader.readLine());
     assertEquals("magic word!", reader.readLine());
+    assertEquals("another line", reader.readLine());
     assertNull(reader.readLine());
     server.stop(true);
   }
