@@ -1,6 +1,7 @@
 package org.apache.hadoop.gateway.ssh.audit;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.StringReader;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -23,7 +24,7 @@ public class TerminalAuditThreadTest {
 
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork("resource", "user",
-            new BufferedReader(new StringReader("")), knoxTunnelShellMock);
+            new ByteArrayInputStream("".getBytes("UTF-8")), knoxTunnelShellMock);
     EasyMock.expect(workQueueMock.take())
         .andReturn(terminalAuditWork);
     EasyMock.expect(workQueueMock.take())

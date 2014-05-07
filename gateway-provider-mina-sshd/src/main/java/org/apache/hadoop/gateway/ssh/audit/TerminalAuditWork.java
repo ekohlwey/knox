@@ -2,6 +2,7 @@ package org.apache.hadoop.gateway.ssh.audit;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
@@ -13,14 +14,14 @@ public class TerminalAuditWork {
   private static final Logger LOG = LoggerFactory
       .getLogger(TerminalAuditWork.class);
 
-  private final BufferedReader reader;
+  private final InputStream inputStream;
   final String user;
   private final KnoxTunnelShell originatingShell;
   final String resource;
 
-  public TerminalAuditWork(String resource, String user, BufferedReader buffer,
+  public TerminalAuditWork(String resource, String user, InputStream inputStream,
       KnoxTunnelShell originatingShell) {
-    this.reader = buffer;
+    this.inputStream = inputStream;
     this.user = user;
     this.resource = resource;
     this.originatingShell = originatingShell;
@@ -30,8 +31,8 @@ public class TerminalAuditWork {
     return originatingShell;
   }
 
-  public BufferedReader getReader() {
-    return reader;
+  public InputStream getStream() {
+    return inputStream;
   }
 
   public String getResource() {

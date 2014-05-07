@@ -9,9 +9,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
 
-import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.commons.io.input.TeeInputStream;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
+import org.apache.hadoop.gateway.ssh.StreamFlusher;
 import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.HelpSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
@@ -30,22 +32,25 @@ public class KnoxTunnelShell implements Command {
   private ExitCallback exitCallback;
   private OutputStream errorStream;
   private OutputStream outputStream;
+  private InputStream inputStream;
   private final Map<String, SSHAction> actionMap = new HashMap<String, SSHAction>();
   private final ShellExitHandler exitHandler = new ShellExitHandler(this);
   private ShellInterpreterThread interpreterThread = null;
   private final String topologyName;
-  private BufferedReader reader;
   private String username;
+  private final Timer timer;
   private final SSHConfiguration sshConfiguration;
 
   public KnoxTunnelShell(String topologyName, SSHConfiguration configuration) {
     this.topologyName = topologyName;
     this.sshConfiguration = configuration;
+    this.timer = new Timer("Stream Flusher");
   }
 
   @Override
   public void destroy() {
     try {
+      timer.cancel();
       interpreterThread.close();
     } catch (IOException e) {
       LOG.error("Error while closing interpreter thread.", e);
@@ -64,8 +69,7 @@ public class KnoxTunnelShell implements Command {
 
   @Override
   public void setInputStream(InputStream arg0) {
-    this.reader = new BufferedReader(new InputStreamReader(
-        new NoCloseInputStream(arg0)));
+    this.inputStream = new NoCloseInputStream(arg0);
   }
 
   @Override
@@ -83,9 +87,17 @@ public class KnoxTunnelShell implements Command {
     for (SSHAction action : actions) {
       actionMap.put(action.getCommand(), action);
     }
+
     interpreterThread =  new ShellInterpreterThread(
-        this, exitHandler, reader, outputStream, errorStream, actionMap);
+        this, exitHandler, inputStream, outputStream, errorStream, actionMap);
     interpreterThread.start();
+
+    timer.schedule(new StreamFlusher(outputStream),
+        sshConfiguration.getStreamFlusherPeriod(),
+        sshConfiguration.getStreamFlusherPeriod());
+    timer.schedule(new StreamFlusher(errorStream),
+        sshConfiguration.getStreamFlusherPeriod(),
+        sshConfiguration.getStreamFlusherPeriod());
   }
 
   public String getTopologyName() {
@@ -106,15 +118,6 @@ public class KnoxTunnelShell implements Command {
 
   public String getUsername() {
     return username;
-  }
-
-  /**
-   * Get the input stream, as a buffered reader. Since the lines typed into the
-   * console are audited, we use a reader for IO. If an input stream is
-   * required, wrap this buffer in a {@link ReaderInputStream}.
-   */
-  public BufferedReader getReader() {
-    return reader;
   }
 
   public Object getConfiguration() {

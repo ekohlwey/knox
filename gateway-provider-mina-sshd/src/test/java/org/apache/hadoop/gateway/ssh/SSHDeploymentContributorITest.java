@@ -61,6 +61,8 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.io.ByteStreams;
+
 @RunWith(FrameworkRunner.class)
 @CreateDS(name = "KnoxLDAPPasswordAuthenticatorITest-class", enableChangeLog = false, partitions = { @CreatePartition(name = "example", suffix = "dc=example,dc=com", contextEntry = @ContextEntry(entryLdif = "dn: dc=example,dc=com\n"
     + "objectClass: domain\n" + "dc: example")) })
@@ -104,22 +106,24 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
           new Thread() {
             @Override
             public void run() {
-              byte[] buffer = new byte[1024];
-              int read;
-              try {
-                while ((read = inputStream.read(buffer)) > 0) {
-                  outPipe.write(buffer, 0, read);
-                  outPipe.flush();
-                }
-              } catch (IOException e) {
-                LOG.error("Cant write to pipe", e);
-              } finally {
+              while(true) {
+                byte[] buffer = new byte[1024];
+                int read;
                 try {
-                  outPipe.close();
+                  while ((read = inputStream.read(buffer)) > 0) {
+                    outPipe.write(buffer, 0, read);
+                    outPipe.flush();
+                  }
                 } catch (IOException e) {
-                  LOG.error("Cant close pipe", e);
+                  LOG.error("Cant write to pipe", e);
+                } finally {
+                  try {
+                    outPipe.close();
+                  } catch (IOException e) {
+                    LOG.error("Cant close pipe", e);
+                  }
+                  callback.onExit(0);
                 }
-                callback.onExit(0);
               }
             }
           }.start();
@@ -421,23 +425,30 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
     channel.setIn(in);
 
     channel.open().await();
+
     commands.write(("connect localhost:" + 60023 + "\n").getBytes("UTF-8"));
+    commands.flush();
     channel.waitFor(ClientChannel.CLOSED, 2000);
     //verifying that the connection is still alive
     commands.write("magic word!\n".getBytes("UTF-8"));
-    channel.waitFor(ClientChannel.CLOSED, 1000);
+    commands.flush();
+    channel.waitFor(ClientChannel.CLOSED, 100);
     commands.write("another line\n".getBytes("UTF-8"));
+    commands.flush();
     channel.waitFor(ClientChannel.CLOSED, 1000);
-    channel.close(true);
-    client.stop();
-    contributor.close();
+
     BufferedReader reader = new BufferedReader(new InputStreamReader(inPipe));
     assertEquals("connected error\n", new String(err.toByteArray(), "UTF-8"));
     assertEquals("client@topology > connected out\n", new String(out.toByteArray(), "UTF-8"));
     assertEquals("exec sudo -iu client ; logout", reader.readLine());
     assertEquals("magic word!", reader.readLine());
     assertEquals("another line", reader.readLine());
+
+    channel.close(true);
+    client.stop();
     assertNull(reader.readLine());
+
+    contributor.close();
     server.stop(true);
   }
 }

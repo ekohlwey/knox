@@ -2,6 +2,7 @@ package org.apache.hadoop.gateway.ssh.commands;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
@@ -15,7 +16,7 @@ public class UnsupportedCommandAction extends SSHAction {
 
   @Override
   public int handleCommand(String command, String commandLine,
-      BufferedReader inputStream, OutputStream outputStream, OutputStream error)
+                           InputStream inputStream, OutputStream outputStream, OutputStream error)
       throws IOException {
     PrintStream errorWriter = new PrintStream(new NoCloseOutputStream(error));
     errorWriter.println("-knox: " + command + ": command not found");

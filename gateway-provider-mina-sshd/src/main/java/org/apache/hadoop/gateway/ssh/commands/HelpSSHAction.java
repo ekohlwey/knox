@@ -2,6 +2,7 @@ package org.apache.hadoop.gateway.ssh.commands;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Map;
@@ -19,7 +20,7 @@ public class HelpSSHAction extends SSHAction {
 
   @Override
   public int handleCommand(String command, String commandLine,
-      BufferedReader inputStream, OutputStream outputStream, OutputStream error) {
+                           InputStream inputStream, OutputStream outputStream, OutputStream error) {
     PrintStream printStream = new PrintStream(new NoCloseOutputStream(
         outputStream));
     int longestCommand = 0;

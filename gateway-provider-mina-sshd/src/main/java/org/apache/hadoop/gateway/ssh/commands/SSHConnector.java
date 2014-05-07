@@ -127,11 +127,10 @@ public class SSHConnector {
     public InputStream buildSudoCommand(String sudoToUser, InputStream command,
                                         PipedInputStream loggingInputStream)
         throws IOException {
-      InputStream shellStream = new NoCloseInputStream(command);
       PipedOutputStream loggingOutputStream =
           new PipedOutputStream(loggingInputStream);
       InputStream tee =
-          new TeeInputStream(shellStream, loggingOutputStream, true);
+          new TeeInputStream(command, loggingOutputStream, true);
 
       String sudoCommand = sshConfiguration.getLoginCommand();
       String sudoCommandWithUser = sudoCommand.replace("{0}", sudoToUser);
@@ -169,7 +168,6 @@ public class SSHConnector {
           throw new SshClientConnectionFailedException(
               openFuture.getException());
         }
-
         boolean closed = false;
         while(!closed) {
           int status = channelShell.waitFor(ClientChannel.CLOSED, sshConfiguration.getTunnelConnectTimeout());
@@ -245,6 +243,7 @@ public class SSHConnector {
     try {
       sshClient = sshClientBuilder.build();
       sshClient.start();
+
       session = sshClientConnector.connect(sshClient, host, port);
 
       PipedInputStream loggingInputStream = new PipedInputStream();
@@ -292,7 +291,7 @@ public class SSHConnector {
         session.close(true);
       }
       if (sshClient != null) {
-        sshClient.close(true);
+        sshClient.stop();
       }
     }
     //exit is an Integer that can be null, the auto-boxing could cause an NPE

@@ -28,7 +28,9 @@ public class ProviderConfigurer {
   public static final String TUNNEL_USER = "tunnel-user";
   public static final String TUNNEL_TIMEOUT = "tunnel-timeout";
   public static final String LOGIN_COMMAND ="login-command";
+  public static final String STREAM_FLUSH_PERIOD ="stream-flush-period";
   public static final Integer DEFAULT_QUEUE_SIZE = 1024;
+  public static final Integer DEFAULT_STREAM_FLUSH_PERIOD = 50;
 
   public SSHConfiguration configure(Provider provider) {
     Map<String, String> providerParams = provider.getParams();
@@ -121,6 +123,13 @@ public class ProviderConfigurer {
         tunnelTimeoutStr = "1000"; //default 1 sec
       }
       configuration.setTunnelConnectTimeout(Integer.parseInt(tunnelTimeoutStr));
+
+      String streamFlushPeriodStr = providerParams.get(STREAM_FLUSH_PERIOD);
+      long streamFlushPeriod = DEFAULT_STREAM_FLUSH_PERIOD;
+      if(streamFlushPeriodStr != null) {
+        streamFlushPeriod = Long.parseLong(streamFlushPeriodStr);
+      }
+      configuration.setStreamFlusherPeriod(streamFlushPeriod);
 
       configuration.setUseShiroAuth(shiroEnabled);
 

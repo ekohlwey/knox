@@ -2,15 +2,23 @@ package org.apache.hadoop.gateway.ssh.repl;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.commons.io.input.TeeInputStream;
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
 import org.apache.hadoop.gateway.ssh.commands.UnsupportedCommandAction;
+import org.apache.sshd.common.util.NoCloseInputStream;
 import org.apache.sshd.common.util.NoCloseOutputStream;
+
+import com.google.common.io.ByteStreams;
 
 public class ShellInterpreterThread extends Thread implements Closeable {
 
@@ -19,16 +27,18 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   private final ReentrantLock stopLock = new ReentrantLock();
   private boolean stop = false;
   private final KnoxTunnelShell knoxShell;
-  private final BufferedReader inputReader;
+  private final InputStream inputStream;
   private final OutputStream output;
   private final OutputStream error;
 
-  public ShellInterpreterThread(KnoxTunnelShell knoxShell,
-      ShellExitHandler exitHandler, BufferedReader inputReader,
-      OutputStream output, OutputStream error, Map<String, SSHAction> actionMap) {
+  public ShellInterpreterThread(KnoxTunnelShell knoxShell, ShellExitHandler exitHandler,
+                                InputStream inputStream, OutputStream output,
+                                OutputStream error,
+                                Map<String, SSHAction> actionMap) {
+    super("ShellInterpretedThread");
     this.knoxShell = knoxShell;
     this.exitHandler = exitHandler;
-    this.inputReader = inputReader;
+    this.inputStream = inputStream;
     this.output = output;
     this.error = error;
     this.shellActions = actionMap;
@@ -37,10 +47,13 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   public void run() {
     boolean run = true;
     int result = 0;
-
     // New lines are not handled correctly with printstream
     PrintStream consolePrinter = new PrintStream(new NoCloseOutputStream(
         output));
+    /**
+     * The buffered reader approach to readLine was causing the channel to pause.
+     */
+    DataInputStream dataInputStream = new DataInputStream(inputStream);
     try {
       while (run) {
         consolePrinter.printf("%s@%s > ", knoxShell.getUsername(),
@@ -49,13 +62,12 @@ public class ShellInterpreterThread extends Thread implements Closeable {
 
         String line = null;
         try {
-          line = inputReader.readLine();
+          line = dataInputStream.readLine();
         } catch (IOException e) {
           consolePrinter.close();
           exitHandler.failure(e);
           return;
         }
-
         if (line == null) {
           run = false;
           continue;
@@ -77,7 +89,8 @@ public class ShellInterpreterThread extends Thread implements Closeable {
           action = new UnsupportedCommandAction();
         }
         try {
-          result = action.handleCommand(command, unconsumedLine, inputReader,
+          result = action.handleCommand(command, unconsumedLine,
+              dataInputStream,
               output, error);
         } catch (IOException e) {
           exitHandler.failure(e);
@@ -92,6 +105,13 @@ public class ShellInterpreterThread extends Thread implements Closeable {
     } finally {
       if (consolePrinter != null) {
         consolePrinter.close();
+      }
+      if (dataInputStream != null) {
+        try {
+          dataInputStream.close();
+        } catch (IOException e) {
+          exitHandler.failure(e);
+        }
       }
     }
     exitHandler.normalExit(result);

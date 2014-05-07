@@ -1,6 +1,6 @@
 package org.apache.hadoop.gateway.ssh.audit;
 
-import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 import org.apache.hadoop.gateway.audit.api.Action;
@@ -27,22 +27,27 @@ public class TerminalActionAuditRecorder {
   }
 
   public void auditWork(TerminalAuditWork work) {
-    BufferedReader reader = work.getReader();
-    String line;
+    //Buffered Reader does not work here, the stream buffers and does not output
+    DataInputStream dataInputStream = new DataInputStream(work.getStream());
     try {
-      line = reader.readLine();
-    } catch (IOException e) {
-      handler.handleError(e, work.getOriginatingShell());
-      return;
-    }
-    String user = work.user;
-    String resource = work.resource;
-    if (line != null) {
-      auditor.audit(Action.ACCESS, user + "@" + resource + ":" + line,
-          ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE);
-    } else {
+      String line;
+      do {
+        try {
+          line = dataInputStream.readLine();
+        } catch (IOException e) {
+          handler.handleError(e, work.getOriginatingShell());
+          return;
+        }
+        String user = work.user;
+        String resource = work.resource;
+        if (line != null) {
+          auditor.audit(Action.ACCESS, user + "@" + resource + ":" + line,
+              ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE);
+        }
+      } while (line != null);
+    } finally {
       try {
-        reader.close();
+        dataInputStream.close();
       } catch (IOException e) {
         handler.handleError(e, work.getOriginatingShell());
         return;

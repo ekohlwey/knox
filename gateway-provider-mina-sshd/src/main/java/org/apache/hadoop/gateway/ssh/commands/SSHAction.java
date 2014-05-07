@@ -2,6 +2,7 @@ package org.apache.hadoop.gateway.ssh.commands;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 public abstract class SSHAction {
@@ -29,7 +30,7 @@ public abstract class SSHAction {
   }
 
   public abstract int handleCommand(String command, String commandLine,
-      BufferedReader inputStream, OutputStream outputStream, OutputStream error)
+      InputStream inputStream, OutputStream outputStream, OutputStream error)
       throws IOException;
 
 }

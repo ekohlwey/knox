@@ -1,15 +1,14 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
-import static org.apache.hadoop.gateway.ssh.commands.SSHConstants.*;
+import static org.apache.hadoop.gateway.ssh.commands.SSHConstants.SSH_ERROR_CODE;
 
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.hadoop.gateway.i18n.messages.MessagesFactory;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.SshGatewayMessages;
@@ -41,7 +40,7 @@ public class ConnectSSHAction extends SSHAction {
 
   @Override
   public int handleCommand(String command, String commandLine,
-      BufferedReader commandsReader, OutputStream outputStream, OutputStream error)
+                           InputStream commandStream, OutputStream outputStream, OutputStream error)
       throws IOException {
     matcher.reset(commandLine);
     if (matcher.matches()) {
@@ -54,8 +53,9 @@ public class ConnectSSHAction extends SSHAction {
         port = 22;
       }
       try {
-        return sshConnector.connectSSH(sudoToUser, host, port,
-            new ReaderInputStream(commandsReader), outputStream, error);
+        return sshConnector
+            .connectSSH(sudoToUser, host, port, commandStream, outputStream,
+                error);
       } catch (RuntimeSshException e) {
         LOG.failedConnectingToRemote(host + ":" + port, e);
         PrintWriter errorWriter = new PrintWriter(

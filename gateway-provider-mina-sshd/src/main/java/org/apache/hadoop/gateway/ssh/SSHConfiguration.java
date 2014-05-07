@@ -26,6 +26,7 @@ public class SSHConfiguration {
   private String loginCommand;
   private long tunnelConnectTimeout;
   private int queueSize = ProviderConfigurer.DEFAULT_QUEUE_SIZE;
+  private long streamFlusherPeriod = ProviderConfigurer.DEFAULT_STREAM_FLUSH_PERIOD;
 
   public SSHConfiguration() {
   }
@@ -207,6 +208,14 @@ public class SSHConfiguration {
     this.useShiroAuth = useShiroAuth;
   }
 
+  public long getStreamFlusherPeriod() {
+    return streamFlusherPeriod;
+  }
+
+  public void setStreamFlusherPeriod(long streamFlusherPeriod) {
+    this.streamFlusherPeriod = streamFlusherPeriod;
+  }
+
   @Override
   public String toString() {
     return "SSHConfiguration{" +
@@ -233,6 +242,7 @@ public class SSHConfiguration {
         ", loginCommand='" + loginCommand + '\'' +
         ", tunnelConnectTimeout=" + tunnelConnectTimeout +
         ", queueSize=" + queueSize +
+        ", streamFlusherPeriod=" + streamFlusherPeriod +
         '}';
   }
 }

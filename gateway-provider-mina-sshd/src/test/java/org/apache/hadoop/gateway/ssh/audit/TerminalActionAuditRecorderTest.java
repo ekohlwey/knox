@@ -1,8 +1,8 @@
 package org.apache.hadoop.gateway.ssh.audit;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.InputStream;
 
 import org.apache.hadoop.gateway.audit.api.Action;
 import org.apache.hadoop.gateway.audit.api.ActionOutcome;
@@ -11,8 +11,6 @@ import org.apache.hadoop.gateway.audit.api.ResourceType;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.easymock.EasyMock;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class TerminalActionAuditRecorderTest {
 
@@ -37,10 +35,10 @@ public class TerminalActionAuditRecorderTest {
     TerminalActionAuditRecorder terminalActionAuditRecorder =
         new TerminalActionAuditRecorder(terminalErrorHandlerMock, auditorMock);
 
-    BufferedReader performedWorkReader =
-        new BufferedReader(new StringReader(performedWork));
+    ByteArrayInputStream performedWorkStream =
+        new ByteArrayInputStream(performedWork.getBytes("UTF-8"));
     TerminalAuditWork terminalAuditWork =
-        new TerminalAuditWork(resource, user, performedWorkReader,
+        new TerminalAuditWork(resource, user, performedWorkStream,
             knoxTunnelShellMock);
 
     terminalActionAuditRecorder.auditWork(terminalAuditWork);
@@ -57,27 +55,29 @@ public class TerminalActionAuditRecorderTest {
     Auditor auditorMock = EasyMock.createMock(Auditor.class);
     KnoxTunnelShell knoxTunnelShellMock =
         EasyMock.createMock(KnoxTunnelShell.class);
-    BufferedReader bufferedReaderMock =
-        EasyMock.createMock(BufferedReader.class);
+    InputStream inMock =
+        EasyMock.createMock(InputStream.class);
 
     IOException ioException = new IOException();
-    EasyMock.expect(bufferedReaderMock.readLine()).andThrow(ioException);
+    EasyMock.expect(inMock.read()).andThrow(ioException);
     terminalErrorHandlerMock.handleError(ioException, knoxTunnelShellMock);
+    EasyMock.expectLastCall();
+    inMock.close();
     EasyMock.expectLastCall();
 
     EasyMock.replay(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock,
-        bufferedReaderMock);
+        inMock);
 
     TerminalActionAuditRecorder terminalActionAuditRecorder =
         new TerminalActionAuditRecorder(terminalErrorHandlerMock, auditorMock);
 
     TerminalAuditWork terminalAuditWork =
-        new TerminalAuditWork(resource, user, bufferedReaderMock,
+        new TerminalAuditWork(resource, user, inMock,
             knoxTunnelShellMock);
 
     terminalActionAuditRecorder.auditWork(terminalAuditWork);
     EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock,
-        bufferedReaderMock);
+        inMock);
   }
 
   @Test
@@ -90,25 +90,25 @@ public class TerminalActionAuditRecorderTest {
     Auditor auditorMock = EasyMock.createMock(Auditor.class);
     KnoxTunnelShell knoxTunnelShellMock =
         EasyMock.createMock(KnoxTunnelShell.class);
-    BufferedReader bufferedReaderMock =
-        EasyMock.createMock(BufferedReader.class);
+    InputStream inMock =
+        EasyMock.createMock(InputStream.class);
 
-    EasyMock.expect(bufferedReaderMock.readLine()).andReturn(null);
-    bufferedReaderMock.close();
+    EasyMock.expect(inMock.read()).andReturn(-1);
+    inMock.close();
     EasyMock.expectLastCall();
 
     EasyMock.replay(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock,
-        bufferedReaderMock);
+        inMock);
 
     TerminalActionAuditRecorder terminalActionAuditRecorder =
         new TerminalActionAuditRecorder(terminalErrorHandlerMock, auditorMock);
 
     TerminalAuditWork terminalAuditWork =
-        new TerminalAuditWork(resource, user, bufferedReaderMock,
+        new TerminalAuditWork(resource, user, inMock,
             knoxTunnelShellMock);
 
     terminalActionAuditRecorder.auditWork(terminalAuditWork);
     EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock,
-        bufferedReaderMock);
+        inMock);
   }
 }

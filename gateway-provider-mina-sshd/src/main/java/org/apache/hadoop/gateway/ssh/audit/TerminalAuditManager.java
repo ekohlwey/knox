@@ -48,8 +48,7 @@ public class TerminalAuditManager {
 
   public void auditStream(InputStream in, String resource, String user,
       KnoxTunnelShell originatingShell) {
-    BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-    terminalWorkQueue.add(new TerminalAuditWork(resource, user, reader,
+    terminalWorkQueue.add(new TerminalAuditWork(resource, user, in,
         originatingShell));
   }
 

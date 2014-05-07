@@ -5,16 +5,14 @@ import static org.junit.Assert.*;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.StringReader;
-import java.util.List;
 
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
-import org.junit.Assert;
 import org.junit.Test;
 
+import com.google.common.io.ByteStreams;
 import com.google.common.io.CharStreams;
-import junit.framework.TestCase;
 
 public class TerminalAuditManagerITest {
 
@@ -40,7 +38,7 @@ public class TerminalAuditManagerITest {
     String data = "input data";
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork(resource, user,
-            new BufferedReader(new StringReader(data)),
+            new ByteArrayInputStream(data.getBytes("UTF-8")),
             knoxTunnelShell);
     manager
         .auditStream(new ByteArrayInputStream(data.getBytes()), resource, user,
@@ -56,6 +54,6 @@ public class TerminalAuditManagerITest {
     assertEquals(resource, value.getResource());
     assertEquals(user, value.getUser());
     assertEquals(knoxTunnelShell, value.getOriginatingShell());
-    assertEquals(data, CharStreams.toString(value.getReader()));
+    assertEquals(data, new String(ByteStreams.toByteArray(value.getStream())));
   }
 }

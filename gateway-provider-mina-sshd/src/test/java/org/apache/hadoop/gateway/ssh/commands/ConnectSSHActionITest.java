@@ -119,7 +119,7 @@ public class ConnectSSHActionITest {
       ConnectSSHAction connectSSHAction =
           new ConnectSSHAction(sudoToUser, sshConnector);
       connectSSHAction.handleCommand(simulatedTerminalInput,
-          "localhost:" + SSHD_SERVER_PORT, in, out, err);
+          "localhost:" + SSHD_SERVER_PORT, new ByteArrayInputStream(simulatedTerminalInput.getBytes("UTF-8")), out, err);
       out.close();
       err.close();
 
