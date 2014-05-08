@@ -34,6 +34,7 @@ import org.apache.hadoop.gateway.deploy.DeploymentContext;
 import org.apache.hadoop.gateway.topology.Param;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Topology;
+import org.apache.hadoop.test.category.IntegrationTests;
 import org.apache.sshd.ClientChannel;
 import org.apache.sshd.ClientSession;
 import org.apache.sshd.SshClient;
@@ -56,6 +57,7 @@ import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -77,6 +79,7 @@ import com.google.common.io.ByteStreams;
  * 
  * Setting up LDAP, KDC, SSH Provider, and client to test the "help" command
  */
+@Category( { IntegrationTests.class} )
 public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
   public static class PipingCommandFactory implements Factory<Command> {

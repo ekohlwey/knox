@@ -13,7 +13,9 @@ import org.apache.directory.server.core.integ.AbstractLdapTestUnit;
 import org.apache.directory.server.core.integ.FrameworkRunner;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.auth.LDAPAuthorizer;
+import org.apache.hadoop.test.category.IntegrationTests;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 @RunWith(FrameworkRunner.class)
@@ -43,6 +45,7 @@ import org.junit.runner.RunWith;
     "ou: someOU",
     "userPassword: secret"
     })
+@Category( { IntegrationTests.class} )
 public class LDAPAuthorizerITest extends AbstractLdapTestUnit {
 
   @Test

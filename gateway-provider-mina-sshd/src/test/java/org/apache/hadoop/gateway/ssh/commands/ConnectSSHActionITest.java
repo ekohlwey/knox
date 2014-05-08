@@ -27,6 +27,7 @@ import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorITest.PipingCommandFactory;
 import org.apache.hadoop.gateway.ssh.audit.TerminalAuditManager;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
+import org.apache.hadoop.test.category.IntegrationTests;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
@@ -39,6 +40,7 @@ import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -46,6 +48,7 @@ import org.junit.runners.JUnit4;
 import com.google.common.io.ByteStreams;
 
 @RunWith(JUnit4.class)
+@Category( { IntegrationTests.class} )
 public class ConnectSSHActionITest {
 
   public static final int SSHD_SERVER_PORT = 60023;

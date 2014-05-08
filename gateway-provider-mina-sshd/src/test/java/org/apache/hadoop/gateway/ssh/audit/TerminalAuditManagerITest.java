@@ -7,13 +7,16 @@ import java.io.ByteArrayInputStream;
 import java.io.StringReader;
 
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
+import org.apache.hadoop.test.category.IntegrationTests;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CharStreams;
 
+@Category( { IntegrationTests.class} )
 public class TerminalAuditManagerITest {
 
   @Test

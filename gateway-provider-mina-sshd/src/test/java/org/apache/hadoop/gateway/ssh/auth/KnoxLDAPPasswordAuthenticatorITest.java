@@ -16,7 +16,9 @@ import org.apache.hadoop.gateway.ssh.auth.KnoxLDAPPasswordAuthenticator;
 import org.apache.hadoop.gateway.ssh.auth.LDAPAuthorizer;
 import org.apache.hadoop.gateway.ssh.auth.LDAPConnectionFactory;
 import org.apache.hadoop.gateway.ssh.auth.LDAPEscaper;
+import org.apache.hadoop.test.category.IntegrationTests;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 @RunWith(FrameworkRunner.class)
@@ -28,6 +30,7 @@ import org.junit.runner.RunWith;
     "dn: uid=client,dc=example,dc=com", "objectClass: top",
     "objectClass: person", "objectClass: inetOrgPerson", "cn: client",
     "sn: client", "uid: client", "ou: someOU", "userPassword: secret" })
+@Category( { IntegrationTests.class} )
 public class KnoxLDAPPasswordAuthenticatorITest extends AbstractLdapTestUnit {
 
   private final LDAPAuthorizer alwaysAuthorizer = new LDAPAuthorizer(null) {
