@@ -1,6 +1,7 @@
 package org.apache.hadoop.gateway.ssh.audit;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -50,6 +51,12 @@ public class TerminalAuditManager {
       KnoxTunnelShell originatingShell) {
     terminalWorkQueue.add(new TerminalAuditWork(resource, user, in,
         originatingShell));
+  }
+
+  public void auditMessage(String message, String resource, String user,
+                           KnoxTunnelShell originatingShell) {
+    terminalWorkQueue.add(new TerminalAuditWork(resource, user,
+        new ByteArrayInputStream(message.getBytes()), originatingShell));
   }
 
 }
