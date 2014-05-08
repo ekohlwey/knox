@@ -18,9 +18,9 @@ public class SSHConfiguration {
   private String authenticationURL;
   private String[] authorizationGroupIds;
   private String authenticationPattern;
-  private boolean useLdapAuth;
-  private boolean useKerberosAuth;
-  private boolean useShiroAuth;
+  private boolean useLdapAuth = false;
+  private boolean useKerberosAuth = false;
+  private boolean useShiroAuth = true;
   private String knoxKeyfile;
   private String knoxLoginUser;
   private String loginCommand;

@@ -1,6 +1,7 @@
-package org.apache.hadoop.gateway.ssh;
+package org.apache.hadoop.gateway.ssh.auth;
 
 import org.apache.hadoop.gateway.i18n.messages.MessagesFactory;
+import org.apache.hadoop.gateway.ssh.SshGatewayMessages;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.IncorrectCredentialsException;

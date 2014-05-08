@@ -1,16 +1,14 @@
-package org.apache.hadoop.gateway.ssh;
+package org.apache.hadoop.gateway.ssh.auth;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 
 import org.apache.directory.api.ldap.model.cursor.CursorException;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.api.ldap.model.message.SearchScope;
-import org.apache.directory.api.ldap.model.url.LdapUrl;
 import org.apache.directory.ldap.client.api.LdapConnection;
-import org.apache.directory.ldap.client.api.LdapNetworkConnection;
-import org.apache.hadoop.gateway.ssh.LDAPConnectionFactory.InvalidURLException;
+import org.apache.hadoop.gateway.ssh.auth.LDAPConnectionFactory.InvalidURLException;
+import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,4 +1,4 @@
-package org.apache.hadoop.gateway.ssh;
+package org.apache.hadoop.gateway.ssh.auth;
 
 import java.util.List;
 

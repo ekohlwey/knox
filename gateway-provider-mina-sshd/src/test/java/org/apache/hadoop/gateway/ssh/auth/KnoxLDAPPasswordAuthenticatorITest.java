@@ -1,4 +1,4 @@
-package org.apache.hadoop.gateway.ssh;
+package org.apache.hadoop.gateway.ssh.auth;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -11,6 +11,11 @@ import org.apache.directory.server.core.annotations.CreateDS;
 import org.apache.directory.server.core.annotations.CreatePartition;
 import org.apache.directory.server.core.integ.AbstractLdapTestUnit;
 import org.apache.directory.server.core.integ.FrameworkRunner;
+import org.apache.hadoop.gateway.ssh.SSHConfiguration;
+import org.apache.hadoop.gateway.ssh.auth.KnoxLDAPPasswordAuthenticator;
+import org.apache.hadoop.gateway.ssh.auth.LDAPAuthorizer;
+import org.apache.hadoop.gateway.ssh.auth.LDAPConnectionFactory;
+import org.apache.hadoop.gateway.ssh.auth.LDAPEscaper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 

@@ -1,4 +1,4 @@
-package org.apache.hadoop.gateway.ssh;
+package org.apache.hadoop.gateway.ssh.auth;
 
 import org.apache.sshd.common.util.Buffer;
 import org.apache.sshd.server.UserAuth;

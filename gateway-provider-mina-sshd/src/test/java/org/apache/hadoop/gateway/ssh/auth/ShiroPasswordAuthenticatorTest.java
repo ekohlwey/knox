@@ -1,9 +1,9 @@
-package org.apache.hadoop.gateway.ssh;
+package org.apache.hadoop.gateway.ssh.auth;
 
 import static org.junit.Assert.*;
 
+import org.apache.hadoop.gateway.ssh.auth.KnoxShiroPasswordAuthenicator;
 import org.apache.shiro.authc.AuthenticationException;
-import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.subject.Subject;
 import org.easymock.Capture;
