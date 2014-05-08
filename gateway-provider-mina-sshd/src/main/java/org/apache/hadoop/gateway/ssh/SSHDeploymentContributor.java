@@ -112,6 +112,8 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
       ShiroConfig shiroConfig = new ShiroConfig(provider, clusterName);
       Ini ini = new Ini();
       ini.load(new StringReader(shiroConfig.toString()));
+      LOG.shiroConfiguration(ini);
+
       SecurityManager securityManager =
           new IniSecurityManagerFactory(ini).getInstance();
       SecurityUtils.setSecurityManager(securityManager);

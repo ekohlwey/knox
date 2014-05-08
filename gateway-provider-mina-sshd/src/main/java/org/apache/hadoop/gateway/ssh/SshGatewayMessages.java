@@ -4,6 +4,7 @@ import org.apache.hadoop.gateway.i18n.messages.Message;
 import org.apache.hadoop.gateway.i18n.messages.MessageLevel;
 import org.apache.hadoop.gateway.i18n.messages.Messages;
 import org.apache.hadoop.gateway.i18n.messages.StackTrace;
+import org.apache.shiro.config.Ini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,9 @@ import org.slf4j.LoggerFactory;
  */
 @Messages(logger = "org.apache.hadoop.gateway.ssh")
 public interface SshGatewayMessages {
+
+  @Message(level = MessageLevel.DEBUG, text = "Starting shiro authentication with configuration: {0}.")
+  void shiroConfiguration(Ini ini);
 
   @Message(level = MessageLevel.DEBUG, text = "Starting ssh gateway with configuration: {0}.")
   void configuration(SSHConfiguration sshConfiguration);
