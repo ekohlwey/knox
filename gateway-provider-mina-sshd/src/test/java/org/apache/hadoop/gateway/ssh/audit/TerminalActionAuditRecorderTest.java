@@ -3,6 +3,8 @@ package org.apache.hadoop.gateway.ssh.audit;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 
 import org.apache.hadoop.gateway.audit.api.Action;
 import org.apache.hadoop.gateway.audit.api.ActionOutcome;
@@ -115,4 +117,47 @@ public class TerminalActionAuditRecorderTest {
     EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock,
         inMock);
   }
+
+
+  @Test
+  public void testAuditWorkMultiLine() throws Exception {
+    String performedWork = "input data\r\n";
+    String performedWork2 = "input data2\r\n";
+    String resource = "resource";
+    String user = "user";
+
+    TerminalErrorHandler terminalErrorHandlerMock =
+        EasyMock.createMock(TerminalErrorHandler.class);
+    Auditor auditorMock = EasyMock.createMock(Auditor.class);
+    auditorMock.audit(Action.ACCESS, user + "@" + resource + ":" + "input data",
+        ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE);
+    EasyMock.expectLastCall();
+    auditorMock.audit(Action.ACCESS, user + "@" + resource + ":" + "input data2",
+        ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE);
+    EasyMock.expectLastCall();
+
+    KnoxTunnelShell knoxTunnelShellMock =
+        EasyMock.createMock(KnoxTunnelShell.class);
+
+    EasyMock.replay(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock);
+
+    TerminalActionAuditRecorder terminalActionAuditRecorder =
+        new TerminalActionAuditRecorder(terminalErrorHandlerMock, auditorMock);
+
+    PipedInputStream pipedInputStream = new PipedInputStream();
+    PipedOutputStream pipedOutputStream =
+        new PipedOutputStream(pipedInputStream);
+    TerminalAuditWork terminalAuditWork =
+        new TerminalAuditWork(resource, user, pipedInputStream,
+            knoxTunnelShellMock);
+
+    pipedOutputStream.write(performedWork.getBytes("UTF-8"));
+    Thread.sleep(100);
+    pipedOutputStream.write(performedWork2.getBytes("UTF-8"));
+    pipedOutputStream.close();
+
+    terminalActionAuditRecorder.auditWork(terminalAuditWork);
+    EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock);
+  }
+
 }

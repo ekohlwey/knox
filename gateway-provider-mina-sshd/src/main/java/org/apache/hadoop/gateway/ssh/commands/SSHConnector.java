@@ -250,13 +250,16 @@ public class SSHConnector {
       sudoingInputStream = sudoCommandStreamBuilder
           .buildSudoCommand(sudoToUser, commandStream, loggingInputStream);
 
+      auditManager.auditMessage("Logged in", host + ":" + port, sudoToUser,
+          originatingShell);
       auditManager
           .auditStream(loggingInputStream, host + ":" + port, sudoToUser,
               originatingShell);
 
       exit = sshCommandSender
           .sendCommand(session, sudoingInputStream, outputStream, error);
-
+      auditManager.auditMessage("Logged out", host + ":" + port, sudoToUser,
+          originatingShell);
     } catch (SshClientConnectTimeoutException e) {
       printErrorMessage("Failed to connect to " + host + ":" + port +
           " connection timed out.", error, e.getCause());
@@ -268,7 +271,8 @@ public class SSHConnector {
       return SSH_ERROR_CODE;
     } catch (SshClientConnectionUnauthorizedException e) {
       printErrorMessage("Failed to connect to " + host + ":" + port +
-          " connection unauthorized.", error, e.getCause());
+          " User[" + sudoToUser + "] connection unauthorized.", error,
+          e.getCause());
       return SSH_ERROR_CODE;
     } catch (IOException e) {
       LOG.error("Unable to connect to Knox cluster server.", e);

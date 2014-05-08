@@ -19,7 +19,8 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   private Map<String, SSHAction> shellActions = null;
   private final ReentrantLock stopLock = new ReentrantLock();
   private boolean stop = false;
-  private final KnoxTunnelShell knoxShell;
+  private final String username;
+  private final String topology;
   private final InputStream inputStream;
   private final OutputStream output;
   private final OutputStream error;
@@ -29,7 +30,8 @@ public class ShellInterpreterThread extends Thread implements Closeable {
                                 OutputStream error,
                                 Map<String, SSHAction> actionMap) {
     super("ShellInterpretedThread");
-    this.knoxShell = knoxShell;
+    this.username = knoxShell.getUsername();
+    this.topology = knoxShell.getTopologyName();
     this.exitHandler = exitHandler;
     this.inputStream = inputStream;
     this.output = output;
@@ -49,8 +51,8 @@ public class ShellInterpreterThread extends Thread implements Closeable {
     LineReaderInputStream lineReaderStream = new LineReaderInputStream(inputStream);
     try {
       while (run) {
-        consolePrinter.printf("%s@%s > ", knoxShell.getUsername(),
-            knoxShell.getTopologyName());
+        consolePrinter.printf("%s@%s > ", username,
+            topology);
         consolePrinter.flush();
 
         String line = null;
@@ -65,6 +67,8 @@ public class ShellInterpreterThread extends Thread implements Closeable {
           run = false;
           continue;
         }
+        consolePrinter.print("\r\n");
+        consolePrinter.flush();
         line = line.trim();
         String command;
         String unconsumedLine;
@@ -82,9 +86,9 @@ public class ShellInterpreterThread extends Thread implements Closeable {
           action = new UnsupportedCommandAction();
         }
         try {
-          result = action.handleCommand(command, unconsumedLine,
-              lineReaderStream,
-              output, error);
+          result = action
+              .handleCommand(command, unconsumedLine, lineReaderStream, output,
+                  error);
         } catch (IOException e) {
           exitHandler.failure(e);
         }

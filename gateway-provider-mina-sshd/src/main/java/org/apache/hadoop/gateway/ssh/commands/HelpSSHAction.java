@@ -1,6 +1,5 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -20,30 +19,25 @@ public class HelpSSHAction extends SSHAction {
 
   @Override
   public int handleCommand(String command, String commandLine,
-                           InputStream inputStream, OutputStream outputStream, OutputStream error) {
+                           InputStream inputStream, OutputStream outputStream, OutputStream error)
+      throws IOException {
     PrintStream printStream = new PrintStream(new NoCloseOutputStream(
         outputStream));
-    int longestCommand = 0;
-    int longestArgs = 0;
+    int longestCommand = 1;
+    int longestArgs = 1;
     for (SSHAction action : actions.values()) {
       longestCommand = Math.max(longestCommand, action.getCommand().length());
       longestArgs = Math.max(longestArgs, action.getArgGrammar().length());
     }
-    printStream.println("Knox SSH Provider help.");
-    String formatString = "%" + longestCommand + "s %-" + longestArgs
-        + "s %s";
+    printStream.print("Knox SSH Provider help.\r\n");
+    String formatString = "%-" + longestCommand + "s %-" + longestArgs
+        + "s %s\r\n";
     for (SSHAction action : actions.values()) {
       printStream.format(formatString, action.getCommand(),
           action.getArgGrammar(), action.getDescription());
-      printStream.println();
     }
     printStream.close();
-    try {
-      outputStream.flush();
-    } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
+    outputStream.flush();
     return 0;
   }
 }

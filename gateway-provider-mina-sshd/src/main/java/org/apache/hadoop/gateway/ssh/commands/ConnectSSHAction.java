@@ -60,16 +60,16 @@ public class ConnectSSHAction extends SSHAction {
         LOG.failedConnectingToRemote(host + ":" + port, e);
         PrintWriter errorWriter = new PrintWriter(
             new NoCloseOutputStream(error));
-        errorWriter.println("Unable to connect to " + host + " on port "
-            + portString);
+        errorWriter.print("Unable to connect to " + host + " on port "
+            + portString + "\r\n");
         errorWriter.close();
         error.flush();
         return SSH_ERROR_CODE;
       }
     } else {
       PrintWriter errorWriter = new PrintWriter(new NoCloseOutputStream(error));
-      errorWriter.println("Invalid argument: " + commandLine);
-      errorWriter.println("please use a hostname of the form <host>[:<port>]");
+      errorWriter.print("Invalid argument: " + commandLine + "\r\n");
+      errorWriter.print("please use a hostname of the form <host>[:<port>]\r\n");
       errorWriter.close();
       error.flush();
       return SSH_ERROR_CODE;

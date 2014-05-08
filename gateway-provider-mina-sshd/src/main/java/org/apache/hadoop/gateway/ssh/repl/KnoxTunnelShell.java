@@ -1,9 +1,7 @@
 package org.apache.hadoop.gateway.ssh.repl;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 
-import org.apache.commons.io.input.TeeInputStream;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.StreamFlusher;
 import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction;

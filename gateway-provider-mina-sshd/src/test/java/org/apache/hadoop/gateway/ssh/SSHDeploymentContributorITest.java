@@ -439,7 +439,7 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(inPipe));
     assertEquals("connected error\n", new String(err.toByteArray(), "UTF-8"));
-    assertEquals("client@topology > connect localhost:60023\nconnected out\n", new String(out.toByteArray(), "UTF-8"));
+    assertEquals("client@topology > connect localhost:60023\n\r\nconnected out\n", new String(out.toByteArray(), "UTF-8"));
     assertEquals("exec sudo -iu client ; logout", reader.readLine());
     assertEquals("magic word!", reader.readLine());
     assertEquals("another line", reader.readLine());

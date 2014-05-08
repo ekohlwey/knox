@@ -1,12 +1,12 @@
 package org.apache.hadoop.gateway.ssh.util;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 
-import org.apache.hadoop.gateway.ssh.util.LineReaderInputStream;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
@@ -90,8 +90,9 @@ public class LineReaderInputStreamTest {
   public void testClose() throws Exception {
 
     InputStream inputStreamMock = EasyMock.createMock(InputStream.class);
-    EasyMock.expect(inputStreamMock.read((byte[]) EasyMock.anyObject(), EasyMock.anyInt(), EasyMock.anyInt())).andReturn(
-        -1);
+    EasyMock.expect(inputStreamMock
+        .read((byte[]) EasyMock.anyObject(), EasyMock.anyInt(),
+            EasyMock.anyInt())).andReturn(-1);
     inputStreamMock.close();
     EasyMock.expectLastCall();
     EasyMock.replay(inputStreamMock);
