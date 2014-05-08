@@ -9,6 +9,7 @@ import org.apache.hadoop.gateway.audit.api.AuditServiceFactory;
 import org.apache.hadoop.gateway.audit.api.Auditor;
 import org.apache.hadoop.gateway.audit.api.ResourceType;
 import org.apache.hadoop.gateway.audit.log4j.audit.AuditConstants;
+import org.apache.hadoop.gateway.ssh.util.LineReaderInputStream;
 
 public class TerminalActionAuditRecorder {
 
@@ -28,12 +29,12 @@ public class TerminalActionAuditRecorder {
 
   public void auditWork(TerminalAuditWork work) {
     //Buffered Reader does not work here, the stream buffers and does not output
-    DataInputStream dataInputStream = new DataInputStream(work.getStream());
+    LineReaderInputStream lineReaderInputStream = new LineReaderInputStream(work.getStream());
     try {
       String line;
       do {
         try {
-          line = dataInputStream.readLine();
+          line = lineReaderInputStream.readLine();
         } catch (IOException e) {
           handler.handleError(e, work.getOriginatingShell());
           return;
@@ -47,7 +48,7 @@ public class TerminalActionAuditRecorder {
       } while (line != null);
     } finally {
       try {
-        dataInputStream.close();
+        lineReaderInputStream.close();
       } catch (IOException e) {
         handler.handleError(e, work.getOriginatingShell());
         return;

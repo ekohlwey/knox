@@ -1,24 +1,17 @@
 package org.apache.hadoop.gateway.ssh.repl;
 
-import java.io.BufferedReader;
 import java.io.Closeable;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.io.input.ReaderInputStream;
-import org.apache.commons.io.input.TeeInputStream;
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
 import org.apache.hadoop.gateway.ssh.commands.UnsupportedCommandAction;
-import org.apache.sshd.common.util.NoCloseInputStream;
+import org.apache.hadoop.gateway.ssh.util.LineReaderInputStream;
 import org.apache.sshd.common.util.NoCloseOutputStream;
-
-import com.google.common.io.ByteStreams;
 
 public class ShellInterpreterThread extends Thread implements Closeable {
 
@@ -53,7 +46,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
     /**
      * The buffered reader approach to readLine was causing the channel to pause.
      */
-    DataInputStream dataInputStream = new DataInputStream(inputStream);
+    LineReaderInputStream lineReaderStream = new LineReaderInputStream(inputStream);
     try {
       while (run) {
         consolePrinter.printf("%s@%s > ", knoxShell.getUsername(),
@@ -62,7 +55,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
 
         String line = null;
         try {
-          line = dataInputStream.readLine();
+          line = lineReaderStream.readLine(output);
         } catch (IOException e) {
           consolePrinter.close();
           exitHandler.failure(e);
@@ -90,7 +83,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
         }
         try {
           result = action.handleCommand(command, unconsumedLine,
-              dataInputStream,
+              lineReaderStream,
               output, error);
         } catch (IOException e) {
           exitHandler.failure(e);
@@ -106,9 +99,9 @@ public class ShellInterpreterThread extends Thread implements Closeable {
       if (consolePrinter != null) {
         consolePrinter.close();
       }
-      if (dataInputStream != null) {
+      if (lineReaderStream != null) {
         try {
-          dataInputStream.close();
+          lineReaderStream.close();
         } catch (IOException e) {
           exitHandler.failure(e);
         }

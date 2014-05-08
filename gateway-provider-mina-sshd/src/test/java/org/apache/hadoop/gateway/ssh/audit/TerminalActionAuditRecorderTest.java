@@ -59,7 +59,9 @@ public class TerminalActionAuditRecorderTest {
         EasyMock.createMock(InputStream.class);
 
     IOException ioException = new IOException();
-    EasyMock.expect(inMock.read()).andThrow(ioException);
+    EasyMock.expect(inMock
+        .read((byte[]) EasyMock.anyObject(), EasyMock.anyInt(),
+            EasyMock.anyInt())).andThrow(ioException);
     terminalErrorHandlerMock.handleError(ioException, knoxTunnelShellMock);
     EasyMock.expectLastCall();
     inMock.close();
@@ -93,7 +95,9 @@ public class TerminalActionAuditRecorderTest {
     InputStream inMock =
         EasyMock.createMock(InputStream.class);
 
-    EasyMock.expect(inMock.read()).andReturn(-1);
+    EasyMock.expect(inMock
+        .read((byte[]) EasyMock.anyObject(), EasyMock.anyInt(),
+            EasyMock.anyInt())).andReturn(-1);
     inMock.close();
     EasyMock.expectLastCall();
 

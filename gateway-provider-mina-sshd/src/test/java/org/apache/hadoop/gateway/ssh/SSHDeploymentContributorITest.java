@@ -79,7 +79,6 @@ import com.google.common.io.ByteStreams;
  * 
  * Setting up LDAP, KDC, SSH Provider, and client to test the "help" command
  */
-@Category( { IntegrationTests.class} )
 public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
 
   public static class PipingCommandFactory implements Factory<Command> {
@@ -419,30 +418,28 @@ public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
         "Failed to authenticate to server: " + authfuture.getException(),
         authfuture.isSuccess());
     ClientChannel channel = session.createChannel(ClientChannel.CHANNEL_SHELL);
-    PipedInputStream in = new PipedInputStream();
-    PipedOutputStream commands = new PipedOutputStream(in);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
     channel.setOut(out);
     channel.setErr(err);
-    channel.setIn(in);
 
     channel.open().await();
+    OutputStream invertedIn = channel.getInvertedIn();
 
-    commands.write(("connect localhost:" + 60023 + "\n").getBytes("UTF-8"));
-    commands.flush();
+    invertedIn.write(("connect localhost:" + 60023 + "\n").getBytes("UTF-8"));
+    invertedIn.flush();
     channel.waitFor(ClientChannel.CLOSED, 2000);
     //verifying that the connection is still alive
-    commands.write("magic word!\n".getBytes("UTF-8"));
-    commands.flush();
+    invertedIn.write("magic word!\n".getBytes("UTF-8"));
+    invertedIn.flush();
     channel.waitFor(ClientChannel.CLOSED, 100);
-    commands.write("another line\n".getBytes("UTF-8"));
-    commands.flush();
+    invertedIn.write("another line\n".getBytes("UTF-8"));
+    invertedIn.flush();
     channel.waitFor(ClientChannel.CLOSED, 1000);
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(inPipe));
     assertEquals("connected error\n", new String(err.toByteArray(), "UTF-8"));
-    assertEquals("client@topology > connected out\n", new String(out.toByteArray(), "UTF-8"));
+    assertEquals("client@topology > connect localhost:60023\nconnected out\n", new String(out.toByteArray(), "UTF-8"));
     assertEquals("exec sudo -iu client ; logout", reader.readLine());
     assertEquals("magic word!", reader.readLine());
     assertEquals("another line", reader.readLine());

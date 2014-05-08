@@ -30,7 +30,6 @@ import org.junit.runner.RunWith;
     "dn: uid=client,dc=example,dc=com", "objectClass: top",
     "objectClass: person", "objectClass: inetOrgPerson", "cn: client",
     "sn: client", "uid: client", "ou: someOU", "userPassword: secret" })
-@Category( { IntegrationTests.class} )
 public class KnoxLDAPPasswordAuthenticatorITest extends AbstractLdapTestUnit {
 
   private final LDAPAuthorizer alwaysAuthorizer = new LDAPAuthorizer(null) {

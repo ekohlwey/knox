@@ -48,7 +48,6 @@ import org.junit.runners.JUnit4;
 import com.google.common.io.ByteStreams;
 
 @RunWith(JUnit4.class)
-@Category( { IntegrationTests.class} )
 public class ConnectSSHActionITest {
 
   public static final int SSHD_SERVER_PORT = 60023;

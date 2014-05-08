@@ -16,7 +16,6 @@ import org.junit.experimental.categories.Category;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CharStreams;
 
-@Category( { IntegrationTests.class} )
 public class TerminalAuditManagerITest {
 
   @Test

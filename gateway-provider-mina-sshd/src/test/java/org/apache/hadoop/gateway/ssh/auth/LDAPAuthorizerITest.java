@@ -45,7 +45,6 @@ import org.junit.runner.RunWith;
     "ou: someOU",
     "userPassword: secret"
     })
-@Category( { IntegrationTests.class} )
 public class LDAPAuthorizerITest extends AbstractLdapTestUnit {
 
   @Test
