@@ -421,6 +421,11 @@
             </dependency>
             <dependency>
                 <groupId>${gateway-group}</groupId>
+                <artifactId>gateway-provider-mina-sshd</artifactId>
+                <version>${gateway-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${gateway-group}</groupId>
                 <artifactId>gateway-service-tgs</artifactId>
                 <version>${gateway-version}</version>
             </dependency>
@@ -883,6 +888,14 @@
                 <exclusion>
                   <groupId>org.apache.directory.api</groupId>
                   <artifactId>api-ldap-schema-data</artifactId>
+                </exclusion>
+                <exclusion>
+                  <groupId>org.apache.directory.jdbm</groupId>
+                  <artifactId>apacheds-jdbm1</artifactId>
+                </exclusion>
+                <exclusion>
+                  <groupId>bouncycastle</groupId>
+                  <artifactId>bcprov-jdk15</artifactId>
                 </exclusion>
                 <exclusion>
                   <groupId>org.apache.directory.jdbm</groupId>
