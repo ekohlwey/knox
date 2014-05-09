@@ -90,4 +90,51 @@ public class ShellInterpreterThreadTest {
     EasyMock.verify(knoxTunnelShell);
   }
 
+  @Test
+  public void testCtrlD() throws Exception {
+    //verifying the output of the console
+    Map<String, SSHAction> actionMap = new HashMap<String, SSHAction>();
+
+    KnoxTunnelShell knoxTunnelShell = EasyMock.createMock(KnoxTunnelShell.class);
+    ShellExitHandler shellExitHandler = EasyMock.createMock(ShellExitHandler.class);
+
+    EasyMock.expect(knoxTunnelShell.getUsername()).andReturn("user");
+    EasyMock.expect(knoxTunnelShell.getTopologyName()).andReturn("topo");
+
+    EasyMock.replay(knoxTunnelShell);
+
+    PipedInputStream cmdStream = new PipedInputStream();
+    PipedOutputStream writeCmdStream = new PipedOutputStream(cmdStream);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    ShellInterpreterThread shellInterpreterThread = null;
+    try {
+      shellInterpreterThread =
+          new ShellInterpreterThread(knoxTunnelShell, shellExitHandler,
+              cmdStream, out, err, actionMap);
+      shellInterpreterThread.start();
+
+      //write action1
+      writeCmdStream.write("action1\u0004\n".getBytes("UTF-8"));
+      Thread.sleep(100);
+      assertEquals("user@topo > action1",
+          new String(out.toByteArray(), "UTF-8"));
+
+      try {
+        writeCmdStream.write("action2\n".getBytes("UTF-8")); //shell should be closed
+        fail();
+      } catch (IOException ioe) {
+        //Pipe is closed
+      }
+    }finally {
+      writeCmdStream.close();
+      if(shellInterpreterThread != null)
+        shellInterpreterThread.close();
+      out.close();
+      err.close();
+    }
+
+    EasyMock.verify(knoxTunnelShell);
+  }
+
 }

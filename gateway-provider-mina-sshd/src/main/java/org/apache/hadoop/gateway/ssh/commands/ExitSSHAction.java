@@ -4,25 +4,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Map;
 
+import org.apache.hadoop.gateway.ssh.repl.ShellExitHandler;
 import org.apache.sshd.common.util.NoCloseOutputStream;
 
-public class UnsupportedCommandAction extends SSHAction {
+public class ExitSSHAction extends SSHAction {
 
-  public UnsupportedCommandAction() {
-    super(null, null, null);
+
+  public ExitSSHAction() {
+    super("exit", "", "Exit console, or Ctrl-D to exit");
   }
 
   @Override
   public int handleCommand(String command, String commandLine,
                            InputStream inputStream, OutputStream outputStream, OutputStream error)
       throws IOException {
-    PrintStream errorWriter = new PrintStream(new NoCloseOutputStream(error));
-    errorWriter.print("-knox: " + command + ": command not found\r\n");
-    errorWriter.print("type 'help' for a list of commands\r\n");
-    errorWriter.close();
-    error.flush();
-    return -1;
+    return ShellExitHandler.NORMAL_EXIT;
   }
-
 }

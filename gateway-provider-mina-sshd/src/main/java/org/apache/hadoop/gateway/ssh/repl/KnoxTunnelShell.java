@@ -12,6 +12,7 @@ import java.util.Timer;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.StreamFlusher;
 import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction;
+import org.apache.hadoop.gateway.ssh.commands.ExitSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.HelpSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
 import org.apache.sshd.common.util.NoCloseInputStream;
@@ -81,6 +82,7 @@ public class KnoxTunnelShell implements Command {
     List<SSHAction> actions = new ArrayList<SSHAction>();
     actions.add(new ConnectSSHAction(username, sshConfiguration, this));
     actions.add(new HelpSSHAction(actionMap));
+    actions.add(new ExitSSHAction());
     for (SSHAction action : actions) {
       actionMap.put(action.getCommand(), action);
     }

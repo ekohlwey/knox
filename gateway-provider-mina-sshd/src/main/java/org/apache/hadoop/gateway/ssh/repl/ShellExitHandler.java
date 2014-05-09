@@ -5,6 +5,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class ShellExitHandler {
 
   public static final int ERROR_EXIT = 127;
+  public static final int NORMAL_EXIT = 128;
 
   private final KnoxTunnelShell exitCallbackHolder;
   private boolean exited = false;

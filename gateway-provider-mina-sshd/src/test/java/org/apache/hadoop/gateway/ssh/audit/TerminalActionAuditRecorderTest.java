@@ -18,14 +18,14 @@ public class TerminalActionAuditRecorderTest {
 
   @Test
   public void testAuditWork() throws Exception {
-    String performedWork = "input data";
+    String performedWork = "input data\n";
     String resource = "resource";
     String user = "user";
 
     TerminalErrorHandler terminalErrorHandlerMock =
         EasyMock.createMock(TerminalErrorHandler.class);
     Auditor auditorMock = EasyMock.createMock(Auditor.class);
-    auditorMock.audit(Action.ACCESS, user + "@" + resource + ":" + performedWork,
+    auditorMock.audit(Action.ACCESS, user + "@" + resource + ":" + "input data",
         ResourceType.TOPOLOGY, ActionOutcome.UNAVAILABLE);
     EasyMock.expectLastCall().once();
 

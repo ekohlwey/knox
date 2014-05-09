@@ -15,6 +15,15 @@ import org.apache.sshd.common.util.NoCloseOutputStream;
 
 public class ShellInterpreterThread extends Thread implements Closeable {
 
+  public static class ShellInterpreterErrorExitException extends Exception {
+    public ShellInterpreterErrorExitException() {
+    }
+
+    public ShellInterpreterErrorExitException(Throwable cause) {
+      super(cause);
+    }
+  }
+
   private final ShellExitHandler exitHandler;
   private Map<String, SSHAction> shellActions = null;
   private final ReentrantLock stopLock = new ReentrantLock();
@@ -55,14 +64,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
             topology);
         consolePrinter.flush();
 
-        String line = null;
-        try {
-          line = lineReaderStream.readLine(output);
-        } catch (IOException e) {
-          consolePrinter.close();
-          exitHandler.failure(e);
-          return;
-        }
+        String line = lineReaderStream.readLine(consolePrinter);
         if (line == null) {
           run = false;
           continue;
@@ -89,6 +91,14 @@ public class ShellInterpreterThread extends Thread implements Closeable {
           result = action
               .handleCommand(command, unconsumedLine, lineReaderStream, output,
                   error);
+          //exit codes to exit the shell
+          if(result == ShellExitHandler.NORMAL_EXIT) {
+            run = false;
+            continue;
+          } else if(result == ShellExitHandler.ERROR_EXIT) {
+            throw new ShellInterpreterErrorExitException();
+          }
+
         } catch (IOException e) {
           exitHandler.failure(e);
         }

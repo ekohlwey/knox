@@ -44,13 +44,24 @@ public class LineReaderInputStreamTest {
         new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()));
 
     assertEquals("data", lineReader.readLine());
-    assertEquals("data2", lineReader.readLine());
+    assertEquals(null, lineReader.readLine());
     assertNull(lineReader.readLine());
   }
 
   @Test
+  public void testEndofTransmission() throws Exception {
+    String data = "data\n\u0004data2\n";
+
+    LineReaderInputStream lineReader =
+        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()));
+
+    assertEquals("data", lineReader.readLine());
+    assertEquals(null, lineReader.readLine());
+  }
+
+  @Test
   public void testEcho() throws Exception {
-    String data = "data\ndata2";
+    String data = "data\ndata2\n";
 
     ByteArrayOutputStream echo = new ByteArrayOutputStream();
     LineReaderInputStream lineReader =
@@ -60,13 +71,13 @@ public class LineReaderInputStreamTest {
     assertEquals("data\n", new String(echo.toByteArray()));
     echo.reset();
     assertEquals("data2", lineReader.readLine(echo));
-    assertEquals("data2", new String(echo.toByteArray()));
+    assertEquals("data2\n", new String(echo.toByteArray()));
     assertNull(lineReader.readLine());
   }
 
   @Test
   public void testEncoding() throws Exception {
-    String data = "data\ndata2";
+    String data = "data\ndata2\n";
 
     String encoding = "UTF-16BE";
     LineReaderInputStream lineReader = new LineReaderInputStream(

@@ -46,6 +46,7 @@ public class LineReaderInputStream extends FilterInputStream {
     int c;
     while (read) {
       switch (c = inputStreamReader.read()) {
+        case 4: //EOT or Ctrl-d
         case -1:
           read = false;
           closed = true;
@@ -74,7 +75,7 @@ public class LineReaderInputStream extends FilterInputStream {
       }
     }
 
-    if(closed && bytesOut.size() == 0) {
+    if(closed) {
       return null;
     }
 
