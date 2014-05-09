@@ -110,8 +110,16 @@ public class ConnectSSHActionITest {
           .createMock(KnoxTunnelShell.class);
       Capture<InputStream> commandCapture = new Capture<InputStream>();
       Capture<String> resourceCapture = new Capture<String>();
+      fakeTerminalAuditer
+          .auditMessage(anyObject(String.class), anyObject(String.class),
+              anyObject(String.class), eq(originatingShell));
+      expectLastCall();
       fakeTerminalAuditer.auditStream(capture(commandCapture),
           capture(resourceCapture), eq(sudoToUser), eq(originatingShell));
+      expectLastCall();
+      fakeTerminalAuditer
+          .auditMessage(anyObject(String.class), anyObject(String.class),
+              anyObject(String.class), eq(originatingShell));
       expectLastCall();
       replay(originatingShell, fakeTerminalAuditer);
 
