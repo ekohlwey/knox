@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.sshd.ClientChannel;
@@ -18,6 +20,7 @@ import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.future.OpenFuture;
+import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.SshException;
 import org.apache.sshd.common.future.CloseFuture;
 import org.easymock.EasyMock;
@@ -222,6 +225,7 @@ public class SSHConnectorTest {
     ByteArrayInputStream commandStream =
         new ByteArrayInputStream(command.getBytes());
     ByteArrayOutputStream out = new ByteArrayOutputStream();
+    Map<PtyMode, Integer> ptyModes = new HashMap<PtyMode, Integer>();
 
     ClientSession clientSessionMock = EasyMock.createMock(ClientSession.class);
     ChannelShell channelShellMock = EasyMock.createMock(ChannelShell.class);
@@ -229,6 +233,9 @@ public class SSHConnectorTest {
     CloseFuture closeFutureMock = EasyMock.createMock(CloseFuture.class);
     EasyMock.expect(clientSessionMock.createShellChannel())
         .andReturn(channelShellMock);
+    channelShellMock.setupSensibleDefaultPty();
+    EasyMock.expectLastCall();
+    EasyMock.expect(channelShellMock.getPtyModes()).andReturn(ptyModes);
     channelShellMock.setIn(EasyMock.anyObject(InputStream.class));
     EasyMock.expectLastCall();
     channelShellMock.setOut(EasyMock.anyObject(OutputStream.class));
@@ -250,7 +257,7 @@ public class SSHConnectorTest {
         .sendCommand(clientSessionMock, commandStream, out, out);
 
     assertEquals(0, exitstatus.intValue());
-
+    assertEquals(ptyModes.get(PtyMode.ECHO), new Integer(1));
     EasyMock.verify(clientSessionMock, channelShellMock, openFuture);
   }
 
@@ -265,6 +272,7 @@ public class SSHConnectorTest {
     ByteArrayInputStream commandStream =
         new ByteArrayInputStream(command.getBytes());
     ByteArrayOutputStream out = new ByteArrayOutputStream();
+    Map<PtyMode, Integer> ptyModes = new HashMap<PtyMode, Integer>();
 
     ClientSession clientSessionMock = EasyMock.createMock(ClientSession.class);
     ChannelShell channelShellMock = EasyMock.createMock(ChannelShell.class);
@@ -272,6 +280,9 @@ public class SSHConnectorTest {
     CloseFuture closeFutureMock = EasyMock.createMock(CloseFuture.class);
     EasyMock.expect(clientSessionMock.createShellChannel())
         .andReturn(channelShellMock);
+    channelShellMock.setupSensibleDefaultPty();
+    EasyMock.expectLastCall();
+    EasyMock.expect(channelShellMock.getPtyModes()).andReturn(ptyModes);
     channelShellMock.setIn(EasyMock.anyObject(InputStream.class));
     EasyMock.expectLastCall();
     channelShellMock.setOut(EasyMock.anyObject(OutputStream.class));

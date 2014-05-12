@@ -27,6 +27,7 @@ import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.future.OpenFuture;
 import org.apache.sshd.common.NamedFactory;
+import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.SshException;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.util.NoCloseInputStream;
@@ -158,6 +159,8 @@ public class SSHConnector {
       ChannelShell channelShell = null;
       try {
         channelShell = session.createShellChannel();
+        channelShell.setupSensibleDefaultPty();
+        channelShell.getPtyModes().put(PtyMode.ECHO, 1); //make sure input is still echoing
         channelShell.setIn(new NoCloseInputStream(commandInputStream));
         channelShell.setOut(new NoCloseOutputStream(stdOut));
         channelShell.setErr(new NoCloseOutputStream(stdErr));
