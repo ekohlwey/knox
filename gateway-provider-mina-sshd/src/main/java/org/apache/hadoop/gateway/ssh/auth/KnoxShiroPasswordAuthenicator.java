@@ -22,11 +22,12 @@ public class KnoxShiroPasswordAuthenicator implements PasswordAuthenticator {
 
     public boolean auth(Subject currentUser, String username, String password) {
       // let's login the current user so we can check against roles and permissions:
-      if (!currentUser.isAuthenticated()) {
         UsernamePasswordToken token = new UsernamePasswordToken(username, password);
         token.setRememberMe(true);
         try {
           currentUser.login(token);
+          LOG.userAuthenticated(username);
+          return true;
         } catch (UnknownAccountException uae) {
           LOG.userUnknown(username);
           return false;
@@ -36,16 +37,12 @@ public class KnoxShiroPasswordAuthenicator implements PasswordAuthenticator {
         } catch (LockedAccountException lae) {
           LOG.userAccountLocked(username);
           return false;
-        }
-        catch (AuthenticationException ae) {
+        } catch (AuthenticationException ae) {
           LOG.userUnauthenticated(username);
           return false;
         } finally {
           token.clear();
         }
-      }
-      LOG.userAuthenticated(username);
-      return true;
     }
   }
 
