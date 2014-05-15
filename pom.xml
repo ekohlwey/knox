@@ -955,6 +955,12 @@
                 <artifactId>api-ldap-codec-standalone</artifactId>
                 <version>1.0.0-M21</version>
             </dependency>
+
+            <dependency>
+                <groupId>org.apache.directory.api</groupId>
+                <artifactId>api-ldap-net-mina</artifactId>
+                <version>1.0.0-M21</version>
+            </dependency>
             
             <dependency>
               <groupId>org.bouncycastle</groupId>

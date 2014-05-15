@@ -37,8 +37,11 @@ public class LDAPAuthorizer {
     try {
       connection = connectionFactory.createConnection(configuration
           .getAuthorizationURL());
-      connection.bind(configuration.getAuthorizationUser(),
-          configuration.getAuthorizationPass());
+      if(configuration.getAuthorizationUser() == null) {
+        connection.anonymousBind();
+      } else {
+        connection.bind(configuration.getAuthorizationUser(), configuration.getAuthorizationPass());
+      }
       StringBuilder queryString = new StringBuilder();
       // open and
       // open name attr == name

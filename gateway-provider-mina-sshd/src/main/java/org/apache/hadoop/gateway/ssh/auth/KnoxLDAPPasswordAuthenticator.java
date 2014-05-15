@@ -1,11 +1,10 @@
 package org.apache.hadoop.gateway.ssh.auth;
 
-import java.io.IOException;
+import javax.naming.NamingException;
+import javax.naming.ldap.LdapContext;
 
-import org.apache.directory.api.ldap.model.exception.LdapException;
-import org.apache.directory.ldap.client.api.LdapConnection;
-import org.apache.hadoop.gateway.ssh.auth.LDAPConnectionFactory.InvalidURLException;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
+import org.apache.shiro.realm.ldap.LdapUtils;
 import org.apache.sshd.server.PasswordAuthenticator;
 import org.apache.sshd.server.session.ServerSession;
 import org.slf4j.Logger;
@@ -20,16 +19,16 @@ public class KnoxLDAPPasswordAuthenticator implements PasswordAuthenticator {
   private final LDAPEscaper escaper;
   private final LDAPAuthorizer authorizer;
 
-  private LDAPConnectionFactory connectionFactory;
+  private final JndiLdapContextFactory connectionFactory;
 
   public KnoxLDAPPasswordAuthenticator(SSHConfiguration configuration) {
     this(configuration, new LDAPEscaper(), new LDAPAuthorizer(configuration),
-        new LDAPConnectionFactory());
+        new JndiLdapContextFactory());
   }
 
   public KnoxLDAPPasswordAuthenticator(SSHConfiguration configuration,
       LDAPEscaper ldapEscaper, LDAPAuthorizer authorizer,
-      LDAPConnectionFactory connectionFactory) {
+      JndiLdapContextFactory connectionFactory) {
     this.configuration = configuration;
     this.escaper = ldapEscaper;
     this.authorizer = authorizer;
@@ -43,32 +42,23 @@ public class KnoxLDAPPasswordAuthenticator implements PasswordAuthenticator {
     if (!authorizer.authorize(username)) {
       return false;
     }
-    LdapConnection connection = null;
     String authenticationUrl = configuration.getAuthenticationURL();
     if (authenticationUrl == null) {
       authenticationUrl = configuration.getAuthorizationURL();
     }
+    LdapContext context = null;
     try {
-
-      String bindName = configuration.getAuthenticationPattern().replace("{0}",
+      String fullUsername = configuration.getAuthenticationPattern().replace("{0}",
           username);
-      connection = connectionFactory.createConnection(authenticationUrl);
-      connection.bind(bindName, password);
+      //check if user can connect with user/pwd
+      context = connectionFactory
+          .createContext(authenticationUrl, fullUsername, password);
       return true;
-    } catch (LdapException e) {
-      return false;
-    } catch (InvalidURLException e) {
-      LOG.error(
-          "Incorrect authentication url configuration: " + authenticationUrl
-              + ". Nobody will be able to authenticate via LDAP.", e);
+    } catch (NamingException e) {
       return false;
     } finally {
-      if (connection != null) {
-        try {
-          connection.close();
-        } catch (IOException e) {
-          LOG.error("Error closing LDAP connection", e);
-        }
+      if(context != null) {
+        LdapUtils.closeContext(context);
       }
     }
   }

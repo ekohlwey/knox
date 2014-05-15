@@ -138,6 +138,7 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
       LOG.failedToStartGateway(e);
       throw new SSHServerException(e);
     } finally {
+      Runtime.getRuntime().removeShutdownHook(shutdownHandler); //remove any previous one registered
       Runtime.getRuntime().addShutdownHook(shutdownHandler);
     }
   }
