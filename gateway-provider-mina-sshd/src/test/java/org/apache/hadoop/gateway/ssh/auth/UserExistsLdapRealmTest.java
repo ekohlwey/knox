@@ -1,8 +1,7 @@
 package org.apache.hadoop.gateway.ssh.auth;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
 
-import javax.naming.AuthenticationException;
 import javax.naming.NamingEnumeration;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
@@ -53,7 +52,7 @@ public class UserExistsLdapRealmTest {
     EasyMock.verify(ldapContextFactory, ldapContext, search);
   }
 
-  @Test(expected = AuthenticationException.class)
+  @Test(expected = org.apache.shiro.authc.AuthenticationException.class)
   public void testUserDoesNotExist() throws Exception {
 
     String searchBase = "ou=people,dc=example,dc=com";

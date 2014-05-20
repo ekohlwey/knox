@@ -16,18 +16,19 @@ import org.apache.sshd.server.session.ServerSession;
  *
  */
 public class KnoxShiroPasswordAuthenicator implements PasswordAuthenticator {
-  private static SshGatewayMessages LOG = MessagesFactory.get(SshGatewayMessages.class);
+  private static SshGatewayMessages LOG =
+      MessagesFactory.get(SshGatewayMessages.class);
 
   public static class ShiroPasswordAuthenticator {
 
     public boolean auth(Subject currentUser, String username, String password) {
-      // let's login the current user so we can check against roles and permissions:
-        UsernamePasswordToken token = new UsernamePasswordToken(username, password);
-        token.setRememberMe(true);
+      if (!currentUser.isAuthenticated()) {
+        // let's login the current user so we can check against roles and permissions:
+        UsernamePasswordToken token =
+            new UsernamePasswordToken(username, password);
+        token.setRememberMe(false);
         try {
           currentUser.login(token);
-          LOG.userAuthenticated(username);
-          return true;
         } catch (UnknownAccountException uae) {
           LOG.userUnknown(username);
           return false;
@@ -43,6 +44,9 @@ public class KnoxShiroPasswordAuthenicator implements PasswordAuthenticator {
         } finally {
           token.clear();
         }
+      }
+      LOG.userAuthenticated(username);
+      return true;
     }
   }
 
@@ -56,7 +60,7 @@ public class KnoxShiroPasswordAuthenicator implements PasswordAuthenticator {
   @Override
   public boolean authenticate(String username, String password,
                               ServerSession session) {
-    return shiroPasswordAuthenticator.auth(SecurityUtils.getSubject(),
-        username, password);
+    return shiroPasswordAuthenticator
+        .auth(SecurityUtils.getSubject(), username, password);
   }
 }
