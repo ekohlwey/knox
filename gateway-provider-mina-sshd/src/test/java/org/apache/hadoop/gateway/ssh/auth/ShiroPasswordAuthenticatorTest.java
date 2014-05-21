@@ -13,25 +13,9 @@ import org.junit.Test;
 public class ShiroPasswordAuthenticatorTest {
 
   @Test
-  public void testShiroPasswordAuthAlreadyAuthenticated() throws Exception {
-
-    Subject subjectMock = EasyMock.createMock(Subject.class);
-    EasyMock.expect(subjectMock.isAuthenticated()).andReturn(true);
-    EasyMock.replay(subjectMock);
-
-    boolean auth =
-        new KnoxShiroPasswordAuthenicator.ShiroPasswordAuthenticator()
-            .auth(subjectMock, "", "");
-    assertTrue(auth);
-
-    EasyMock.verify(subjectMock);
-  }
-
-  @Test
   public void testShiroPasswordAuthLogin() throws Exception {
 
     Subject subjectMock = EasyMock.createMock(Subject.class);
-    EasyMock.expect(subjectMock.isAuthenticated()).andReturn(false);
     final String[] userPwd = new String[2];
     Capture<UsernamePasswordToken> tokenCapture = new Capture<UsernamePasswordToken>() {
       @Override
@@ -66,7 +50,6 @@ public class ShiroPasswordAuthenticatorTest {
   public void testShiroPasswordAuthLoginFailed() throws Exception {
 
     Subject subjectMock = EasyMock.createMock(Subject.class);
-    EasyMock.expect(subjectMock.isAuthenticated()).andReturn(false);
     final String[] userPwd = new String[2];
     Capture<UsernamePasswordToken> tokenCapture = new Capture<UsernamePasswordToken>() {
       @Override

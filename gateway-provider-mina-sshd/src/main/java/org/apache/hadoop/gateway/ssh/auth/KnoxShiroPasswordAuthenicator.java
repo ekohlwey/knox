@@ -22,28 +22,26 @@ public class KnoxShiroPasswordAuthenicator implements PasswordAuthenticator {
   public static class ShiroPasswordAuthenticator {
 
     public boolean auth(Subject currentUser, String username, String password) {
-      if (!currentUser.isAuthenticated()) {
-        // let's login the current user so we can check against roles and permissions:
-        UsernamePasswordToken token =
-            new UsernamePasswordToken(username, password);
-        token.setRememberMe(false);
-        try {
-          currentUser.login(token);
-        } catch (UnknownAccountException uae) {
-          LOG.userUnknown(username);
-          return false;
-        } catch (IncorrectCredentialsException ice) {
-          LOG.userUnauthenticated(username);
-          return false;
-        } catch (LockedAccountException lae) {
-          LOG.userAccountLocked(username);
-          return false;
-        } catch (AuthenticationException ae) {
-          LOG.userUnauthenticated(username);
-          return false;
-        } finally {
-          token.clear();
-        }
+      // let's login the current user so we can check against roles and permissions:
+      UsernamePasswordToken token =
+          new UsernamePasswordToken(username, password);
+      token.setRememberMe(false);
+      try {
+        currentUser.login(token);
+      } catch (UnknownAccountException uae) {
+        LOG.userUnknown(username);
+        return false;
+      } catch (IncorrectCredentialsException ice) {
+        LOG.userUnauthenticated(username);
+        return false;
+      } catch (LockedAccountException lae) {
+        LOG.userAccountLocked(username);
+        return false;
+      } catch (AuthenticationException ae) {
+        LOG.userUnauthenticated(username);
+        return false;
+      } finally {
+        token.clear();
       }
       LOG.userAuthenticated(username);
       return true;
