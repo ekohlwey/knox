@@ -16,15 +16,15 @@
 -->
 <rules>
 
-    <rule dir="IN" name="OOZIE/oozie/root" pattern="*://*:*/**/oozie/{**}?{**}">
+    <rule dir="IN" name="OOZIE/oozie/root" pattern="*://*/**/oozie/{**}?{**}">
         <rewrite template="{$serviceUrl[OOZIE]}/{**}?{**}"/>
     </rule>
 
-    <rule dir="IN" name="OOZIE/oozie/v1" pattern="*://*:*/**/oozie/v1/{**}?{**}">
+    <rule dir="IN" name="OOZIE/oozie/v1" pattern="*://*/**/oozie/v1/{**}?{**}">
         <rewrite template="{$serviceUrl[OOZIE]}/v1/{**}?{**}"/>
     </rule>
 
-    <rule dir="IN" name="OOZIE/oozie/v2" pattern="*://*:*/**/oozie/v2/{**}?{**}">
+    <rule dir="IN" name="OOZIE/oozie/v2" pattern="*://*/**/oozie/v2/{**}?{**}">
         <rewrite template="{$serviceUrl[OOZIE]}/v2/{**}?{**}"/>
     </rule>
 
