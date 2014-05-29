@@ -130,6 +130,8 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
     sshd.setShellFactory(
         new KnoxTunnelShellFactory(clusterName,
             configuration));
+    sshd.getProperties().put(SshServer.IDLE_TIMEOUT,
+        Long.toString(configuration.getSessionIdleTimeout()));
     try {
       sshd.start();
 

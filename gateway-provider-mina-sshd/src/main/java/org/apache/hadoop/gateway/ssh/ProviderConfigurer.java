@@ -29,6 +29,7 @@ public class ProviderConfigurer {
   public static final String TUNNEL_TIMEOUT = "tunnel-timeout";
   public static final String LOGIN_COMMAND ="login-command";
   public static final String STREAM_FLUSH_PERIOD ="stream-flush-period";
+  public static final String SESSION_IDLE_TIMEOUT ="session-idle-timeout";
   public static final Integer DEFAULT_QUEUE_SIZE = 1024;
   public static final Integer DEFAULT_STREAM_FLUSH_PERIOD = 50;
 
@@ -132,6 +133,10 @@ public class ProviderConfigurer {
       configuration.setStreamFlusherPeriod(streamFlushPeriod);
 
       configuration.setUseShiroAuth(shiroEnabled);
+
+      if(providerParams.containsKey(SESSION_IDLE_TIMEOUT)) {
+        configuration.setSessionIdleTimeout(Long.parseLong(providerParams.get(SESSION_IDLE_TIMEOUT)));
+      }
 
       return configuration;
     } else {

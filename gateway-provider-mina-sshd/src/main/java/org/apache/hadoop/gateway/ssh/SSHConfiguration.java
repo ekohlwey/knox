@@ -27,6 +27,7 @@ public class SSHConfiguration {
   private long tunnelConnectTimeout;
   private int queueSize = ProviderConfigurer.DEFAULT_QUEUE_SIZE;
   private long streamFlusherPeriod = ProviderConfigurer.DEFAULT_STREAM_FLUSH_PERIOD;
+  private long sessionIdleTimeout = 60 * 60 * 1000l; //default 1 hr;
 
   public SSHConfiguration() {
   }
@@ -214,6 +215,14 @@ public class SSHConfiguration {
 
   public void setStreamFlusherPeriod(long streamFlusherPeriod) {
     this.streamFlusherPeriod = streamFlusherPeriod;
+  }
+
+  public long getSessionIdleTimeout() {
+    return sessionIdleTimeout;
+  }
+
+  public void setSessionIdleTimeout(long sessionIdleTimeout) {
+    this.sessionIdleTimeout = sessionIdleTimeout;
   }
 
   @Override
