@@ -253,7 +253,8 @@ public class SSHConnectorTest {
 
     EasyMock.replay(clientSessionMock, channelShellMock, openFuture);
 
-    Integer exitstatus = new SSHConnector.SshCommandSender(sshConfiguration)
+    Integer exitstatus = new SSHConnector.SshCommandSender(sshConfiguration,
+        new SSHConnector.ChannelShellPtyModesSetter())
         .sendCommand(clientSessionMock, commandStream, out, out);
 
     assertEquals(0, exitstatus.intValue());
@@ -298,7 +299,8 @@ public class SSHConnectorTest {
 
     EasyMock.replay(clientSessionMock, channelShellMock, openFuture);
 
-    new SSHConnector.SshCommandSender(sshConfiguration)
+    new SSHConnector.SshCommandSender(sshConfiguration,
+        new SSHConnector.ChannelShellPtyModesSetter())
         .sendCommand(clientSessionMock, commandStream, out, out);
 
     EasyMock.verify(clientSessionMock, channelShellMock, openFuture);

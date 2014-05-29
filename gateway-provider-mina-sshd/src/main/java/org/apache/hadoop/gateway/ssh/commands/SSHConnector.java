@@ -12,6 +12,7 @@ import java.io.PipedOutputStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.util.Arrays;
+import java.util.Map;
 
 import org.apache.commons.io.input.TeeInputStream;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
@@ -140,12 +141,29 @@ public class SSHConnector {
     }
   }
 
+  public static class ChannelShellPtyModesSetter {
+
+    public void setupSensiblePtyModes(ChannelShell channelShell)
+        throws IOException {
+      channelShell.setupSensibleDefaultPty();
+      Map<PtyMode, Integer> ptyModes = channelShell.getPtyModes();
+      ptyModes.put(PtyMode.ECHO, 1); //make sure input is still echoing
+      ptyModes.put(PtyMode.ICANON, 1); //line editing mode
+      ptyModes.put(PtyMode.VEOL, 13); //^M carriage return for EOL
+      ptyModes.put(PtyMode.VEOL2, 13); //^M carriage return for EOL
+      ptyModes.put(PtyMode.ICRNL, 1); //Carriage Return -> Line Feed conversion
+    }
+  }
+
   public static class SshCommandSender {
 
     private final SSHConfiguration sshConfiguration;
+    private final ChannelShellPtyModesSetter channelShellPtyModesSetter;
 
-    public SshCommandSender(SSHConfiguration sshConfiguration) {
+    public SshCommandSender(SSHConfiguration sshConfiguration,
+                            ChannelShellPtyModesSetter channelShellPtyModesSetter) {
       this.sshConfiguration = sshConfiguration;
+      this.channelShellPtyModesSetter = channelShellPtyModesSetter;
     }
 
     /**
@@ -159,8 +177,8 @@ public class SSHConnector {
       ChannelShell channelShell = null;
       try {
         channelShell = session.createShellChannel();
-        channelShell.setupSensibleDefaultPty();
-        channelShell.getPtyModes().put(PtyMode.ECHO, 1); //make sure input is still echoing
+        channelShellPtyModesSetter.setupSensiblePtyModes(channelShell);
+
         channelShell.setIn(new NoCloseInputStream(commandInputStream));
         channelShell.setOut(new NoCloseOutputStream(stdOut));
         channelShell.setErr(new NoCloseOutputStream(stdErr));
@@ -175,6 +193,10 @@ public class SSHConnector {
         while(!closed) {
           int status = channelShell.waitFor(ClientChannel.CLOSED, sshConfiguration.getTunnelConnectTimeout());
           closed = (status & ClientChannel.CLOSED) != 0; //closed
+          if(!closed) {
+            //redo these to keep the environment
+            channelShellPtyModesSetter.setupSensiblePtyModes(channelShell);
+          }
         }
         return channelShell.getExitStatus();
       } finally {
@@ -210,16 +232,17 @@ public class SSHConnector {
   public SSHConnector(SSHConfiguration sshConfiguration,
                       KnoxTunnelShell originatingShell) {
     this(sshConfiguration, TerminalAuditManager.get(sshConfiguration),
-        originatingShell);
+        originatingShell, new ChannelShellPtyModesSetter());
   }
 
   SSHConnector(SSHConfiguration sshConfiguration,
                       TerminalAuditManager auditManager,
-                      KnoxTunnelShell originatingShell) {
+                      KnoxTunnelShell originatingShell,
+                      ChannelShellPtyModesSetter channelShellPtyModesSetter) {
     this(auditManager, originatingShell, new SshClientBuilder(sshConfiguration),
         new SshClientConnector(sshConfiguration),
         new SudoCommandStreamBuilder(sshConfiguration),
-        new SshCommandSender(sshConfiguration));
+        new SshCommandSender(sshConfiguration, channelShellPtyModesSetter));
   }
 
   SSHConnector(TerminalAuditManager auditManager,

@@ -125,7 +125,7 @@ public class ConnectSSHActionITest {
 
       SSHConnector sshConnector =
           new SSHConnector(configuration, fakeTerminalAuditer,
-              originatingShell);
+              originatingShell, new SSHConnector.ChannelShellPtyModesSetter());
       ConnectSSHAction connectSSHAction =
           new ConnectSSHAction(sudoToUser, sshConnector);
       connectSSHAction.handleCommand(simulatedTerminalInput,
