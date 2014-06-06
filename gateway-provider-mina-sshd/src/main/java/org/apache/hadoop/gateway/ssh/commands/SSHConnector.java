@@ -143,15 +143,32 @@ public class SSHConnector {
 
   public static class ChannelShellPtyModesSetter {
 
-    public void setupSensiblePtyModes(ChannelShell channelShell)
+    public Map<PtyMode, Integer> setupSensiblePtyModes(
+        ChannelShell channelShell, Map<PtyMode, Integer> ptyModes,
+        Integer lines, Integer columns, Integer width, Integer height)
         throws IOException {
       channelShell.setupSensibleDefaultPty();
-      Map<PtyMode, Integer> ptyModes = channelShell.getPtyModes();
-      ptyModes.put(PtyMode.ECHO, 1); //make sure input is still echoing
-      ptyModes.put(PtyMode.ICANON, 1); //line editing mode
-      ptyModes.put(PtyMode.VEOL, 13); //^M carriage return for EOL
-      ptyModes.put(PtyMode.VEOL2, 13); //^M carriage return for EOL
-      ptyModes.put(PtyMode.ICRNL, 1); //Carriage Return -> Line Feed conversion
+      if(ptyModes == null) {
+        ptyModes = channelShell.getPtyModes();
+        ptyModes.put(PtyMode.ECHO, 1); //make sure input is still echoing
+        ptyModes.put(PtyMode.ICANON, 1); //line editing mode
+        ptyModes.put(PtyMode.VEOL, 13); //^M carriage return for EOL
+        ptyModes.put(PtyMode.VEOL2, 13); //^M carriage return for EOL
+        ptyModes.put(PtyMode.ICRNL, 1); //Carriage Return -> Line Feed conversion
+      }
+      if (width != null) {
+        channelShell.setPtyWidth(width);
+      }
+      if (height != null) {
+        channelShell.setPtyHeight(height);
+      }
+      if (columns != null) {
+        channelShell.setPtyColumns(columns);
+      }
+      if (lines != null) {
+        channelShell.setPtyLines(lines);
+      }
+      return ptyModes;
     }
   }
 
@@ -177,7 +194,12 @@ public class SSHConnector {
       ChannelShell channelShell = null;
       try {
         channelShell = session.createShellChannel();
-        channelShellPtyModesSetter.setupSensiblePtyModes(channelShell);
+        Map<PtyMode, Integer> ptyModes = channelShellPtyModesSetter
+            .setupSensiblePtyModes(channelShell, null, null, null, null, null);
+        int ptyColumns = channelShell.getPtyColumns();
+        int ptyHeight = channelShell.getPtyHeight();
+        int ptyWidth = channelShell.getPtyWidth();
+        int ptyLines = channelShell.getPtyLines();
 
         channelShell.setIn(new NoCloseInputStream(commandInputStream));
         channelShell.setOut(new NoCloseOutputStream(stdOut));
@@ -195,7 +217,9 @@ public class SSHConnector {
           closed = (status & ClientChannel.CLOSED) != 0; //closed
           if(!closed) {
             //redo these to keep the environment
-            channelShellPtyModesSetter.setupSensiblePtyModes(channelShell);
+            channelShellPtyModesSetter
+                .setupSensiblePtyModes(channelShell, ptyModes, ptyLines, ptyColumns,
+                    ptyWidth, ptyHeight);
           }
         }
         return channelShell.getExitStatus();
