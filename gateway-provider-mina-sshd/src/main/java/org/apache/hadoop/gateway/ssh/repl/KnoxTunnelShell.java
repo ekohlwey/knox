@@ -15,10 +15,12 @@ import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.ExitSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.HelpSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.SSHAction;
+import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.util.NoCloseInputStream;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
+import org.apache.sshd.server.Signal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,9 +78,11 @@ public class KnoxTunnelShell implements Command {
   }
 
   @Override
-  public void start(Environment arg0) throws IOException {
-    Map<String, String> env = arg0.getEnv();
+  public void start(Environment environment) throws IOException {
+    Map<String, String> env = environment.getEnv();
     username = env.get(Environment.ENV_USER);
+    Map<PtyMode, Integer> ptys = environment.getPtyModes();
+//    environment.addSignalListener(listener, Signal.WINCH);
     List<SSHAction> actions = new ArrayList<SSHAction>();
     actions.add(new ConnectSSHAction(username, sshConfiguration, this));
     actions.add(new HelpSSHAction(actionMap));

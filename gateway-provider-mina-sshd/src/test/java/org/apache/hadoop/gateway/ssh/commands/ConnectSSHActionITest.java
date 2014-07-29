@@ -24,7 +24,7 @@ import java.security.PublicKey;
 import java.util.Arrays;
 
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
-import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorITest.PipingCommandFactory;
+import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorTBase.PipingCommandFactory;
 import org.apache.hadoop.gateway.ssh.audit.TerminalAuditManager;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.apache.hadoop.test.category.IntegrationTests;

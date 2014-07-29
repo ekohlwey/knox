@@ -31,6 +31,10 @@ import org.apache.directory.server.core.annotations.CreatePartition;
 import org.apache.directory.server.core.integ.AbstractLdapTestUnit;
 import org.apache.directory.server.core.integ.FrameworkRunner;
 import org.apache.hadoop.gateway.deploy.DeploymentContext;
+import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorTBase.PipingCommandFactory;
+import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorTBase.TestProvider;
+import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorTBase.TestProviderConfigurer;
+import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorTBase.UserAuthStaticPassword;
 import org.apache.hadoop.gateway.topology.Param;
 import org.apache.hadoop.gateway.topology.Provider;
 import org.apache.hadoop.gateway.topology.Topology;
@@ -74,186 +78,9 @@ import com.google.common.io.ByteStreams;
     "dn: uid=client,dc=example,dc=com", "objectClass: top",
     "objectClass: person", "objectClass: inetOrgPerson", "cn: client",
     "sn: client", "uid: client", "ou: someOU", "userPassword: secret" })
-/**
- * SSH Deployment Contributor Test
- * 
- * Setting up LDAP, KDC, SSH Provider, and client to test the "help" command
- */
-public class SSHDeploymentContributorITest extends AbstractLdapTestUnit {
+public class SSHDeploymentContributorITest extends SSHDeploymentContributorTBase {
 
-  public static class PipingCommandFactory implements Factory<Command> {
-
-    private final PipedOutputStream outPipe;
-
-    public PipingCommandFactory(PipedInputStream inPipe) {
-      outPipe = new PipedOutputStream();
-      try {
-        outPipe.connect(inPipe);
-      } catch (IOException e) {
-        LOG.error("Can't close pipe", e);
-      }
-    }
-
-    @Override
-    public Command create() {
-      return new Command() {
-
-        private InputStream inputStream;
-        private OutputStream out;
-        private OutputStream err;
-        private ExitCallback callback;
-
-        @Override
-        public void start(Environment env) throws IOException {
-          new Thread() {
-            @Override
-            public void run() {
-              while(true) {
-                byte[] buffer = new byte[1024];
-                int read;
-                try {
-                  while ((read = inputStream.read(buffer)) > 0) {
-                    outPipe.write(buffer, 0, read);
-                    outPipe.flush();
-                  }
-                } catch (IOException e) {
-                  LOG.error("Cant write to pipe", e);
-                } finally {
-                  try {
-                    outPipe.close();
-                  } catch (IOException e) {
-                    LOG.error("Cant close pipe", e);
-                  }
-                  callback.onExit(0);
-                }
-              }
-            }
-          }.start();
-          try {
-            out.write("connected out\n".getBytes());
-            out.flush();
-          } catch (IOException e) {
-            LOG.error("Unable to write out connection message.", e);
-          }
-          try {
-            err.write("connected error\n".getBytes());
-            err.flush();
-          } catch (IOException e) {
-            LOG.error("Unable to write error connection message.", e);
-          }
-        }
-
-        @Override
-        public void setOutputStream(OutputStream out) {
-          this.out = out;
-        }
-
-        @Override
-        public void setInputStream(final InputStream in) {
-          this.inputStream = in;
-        }
-
-        @Override
-        public void setExitCallback(ExitCallback callback) {
-          this.callback = callback;
-        }
-
-        @Override
-        public void setErrorStream(OutputStream err) {
-          this.err = err;
-        }
-
-        @Override
-        public void destroy() {
-
-        }
-      };
-    }
-  }
-
-  private static final Logger LOG = LoggerFactory
-      .getLogger(SSHDeploymentContributorITest.class);
-
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  private class TestProvider extends Provider {
-
-    private TestProvider() {
-      super();
-
-      addParam(buildParam("main.ldapRealm",
-          "org.apache.hadoop.gateway.shirorealm.KnoxLdapRealm"));
-      addParam(buildParam("main.ldapGroupContextFactory",
-          "org.apache.hadoop.gateway.shirorealm.KnoxLdapContextFactory"));
-      addParam(buildParam("main.ldapRealm.userDnTemplate",
-          "uid={0},dc=example,dc=com"));
-      addParam(buildParam("main.ldapRealm.authorizationEnabled", "true"));
-      addParam(buildParam("main.ldapRealm.contextFactory.url",
-          "ldap://localhost:60389"));
-      addParam(
-          buildParam("main.ldapRealm.contextFactory.authenticationMechanism",
-              "simple"));
-      addParam(buildParam("main.ldapRealm.contextFactory.systemUsername",
-          "uid=client,dc=example,dc=com"));
-      addParam(
-          buildParam("main.ldapRealm.contextFactory.systemPassword", "secret"));
-    }
-
-  }
-
-  private class TestProviderConfigurer extends ProviderConfigurer {
-
-    private final SSHConfiguration sshConfiguration;
-
-    public TestProviderConfigurer(SSHConfiguration sshConfiguration) {
-      this.sshConfiguration = sshConfiguration;
-    }
-
-    @Override
-    public SSHConfiguration configure(Provider provider) {
-      return sshConfiguration;
-    }
-  }
-
-  private static class TestShiroProviderConfigurer extends ProviderConfigurer {
-
-    private final SSHConfiguration sshConfiguration;
-
-    public TestShiroProviderConfigurer(SSHConfiguration sshConfiguration) {
-      this.sshConfiguration = sshConfiguration;
-    }
-
-    @Override
-    public SSHConfiguration configure(Provider provider) {
-      return sshConfiguration;
-
-    }
-  }
-
-  private static class UserAuthStaticPassword extends UserAuthPassword {
-
-    private static class Factory extends UserAuthPassword.Factory {
-
-      @Override
-      public UserAuth create() {
-        return new UserAuthStaticPassword();
-      }
-    }
-
-    @Override
-    public void init(ClientSession session, String service,
-        List<Object> identities) throws Exception {
-      super.init(session, service, Arrays.<Object> asList("secret"));
-    }
-  }
-
-  private static Param buildParam(String name, String value) {
-    Param param = new Param();
-    param.setName(name);
-    param.setValue(value);
-    return param;
-  }
+ 
 
   @Test
   public void testConnectionWithHelp() throws Throwable {
