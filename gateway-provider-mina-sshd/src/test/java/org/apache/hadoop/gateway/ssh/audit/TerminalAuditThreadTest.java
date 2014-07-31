@@ -24,7 +24,7 @@ public class TerminalAuditThreadTest {
 
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork("resource", "user",
-            new ByteArrayInputStream("".getBytes("UTF-8")), knoxTunnelShellMock);
+            new ByteArrayInputStream("".getBytes("UTF-8")), knoxTunnelShellMock, "UTF-8");
     EasyMock.expect(workQueueMock.take())
         .andReturn(terminalAuditWork);
     EasyMock.expect(workQueueMock.take())

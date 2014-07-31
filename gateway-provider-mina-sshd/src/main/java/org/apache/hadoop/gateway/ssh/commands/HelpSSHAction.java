@@ -12,15 +12,15 @@ public class HelpSSHAction extends AbstractAction {
 
   private final Map<String, AbstractAction> actions;
 
-  public HelpSSHAction(Map<String, AbstractAction> actions) {
-    super("help", "", "Print this help message.");
+  public HelpSSHAction(Map<String, AbstractAction> actions, InputStream inputStream, OutputStream outputStream, OutputStream errorStream) {
+    super("help", "", "Print this help message.", inputStream, outputStream, errorStream);
     this.actions = actions;
   }
 
   @Override
-  public int handleCommand(String command, String commandLine,
-                           InputStream inputStream, OutputStream outputStream, OutputStream error)
+  public int handleCommand(String command, String commandLine)
       throws IOException {
+    OutputStream outputStream = getOutputStream();
     PrintStream printStream = new PrintStream(new NoCloseOutputStream(
         outputStream));
     int longestCommand = 1;

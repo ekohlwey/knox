@@ -32,7 +32,7 @@ public class TerminalActionAuditRecorderTest {
     KnoxTunnelShell knoxTunnelShellMock =
         EasyMock.createMock(KnoxTunnelShell.class);
 
-    EasyMock.replay(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock);
+    EasyMock.replay(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock, "UTF-8");
 
     TerminalActionAuditRecorder terminalActionAuditRecorder =
         new TerminalActionAuditRecorder(terminalErrorHandlerMock, auditorMock);
@@ -41,10 +41,10 @@ public class TerminalActionAuditRecorderTest {
         new ByteArrayInputStream(performedWork.getBytes("UTF-8"));
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork(resource, user, performedWorkStream,
-            knoxTunnelShellMock);
+            knoxTunnelShellMock, "UTF-8");
 
     terminalActionAuditRecorder.auditWork(terminalAuditWork);
-    EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock);
+    EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock, "UTF-8");
   }
 
   @Test
@@ -77,7 +77,7 @@ public class TerminalActionAuditRecorderTest {
 
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork(resource, user, inMock,
-            knoxTunnelShellMock);
+            knoxTunnelShellMock, "UTF-8");
 
     terminalActionAuditRecorder.auditWork(terminalAuditWork);
     EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock,
@@ -111,7 +111,7 @@ public class TerminalActionAuditRecorderTest {
 
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork(resource, user, inMock,
-            knoxTunnelShellMock);
+            knoxTunnelShellMock, "UTF-8");
 
     terminalActionAuditRecorder.auditWork(terminalAuditWork);
     EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock,
@@ -139,7 +139,7 @@ public class TerminalActionAuditRecorderTest {
     KnoxTunnelShell knoxTunnelShellMock =
         EasyMock.createMock(KnoxTunnelShell.class);
 
-    EasyMock.replay(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock);
+    EasyMock.replay(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock, "UTF-8");
 
     TerminalActionAuditRecorder terminalActionAuditRecorder =
         new TerminalActionAuditRecorder(terminalErrorHandlerMock, auditorMock);
@@ -149,7 +149,7 @@ public class TerminalActionAuditRecorderTest {
         new PipedOutputStream(pipedInputStream);
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork(resource, user, pipedInputStream,
-            knoxTunnelShellMock);
+            knoxTunnelShellMock, "UTF-8");
 
     pipedOutputStream.write(performedWork.getBytes("UTF-8"));
     Thread.sleep(100);
@@ -157,7 +157,7 @@ public class TerminalActionAuditRecorderTest {
     pipedOutputStream.close();
 
     terminalActionAuditRecorder.auditWork(terminalAuditWork);
-    EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock);
+    EasyMock.verify(terminalErrorHandlerMock, auditorMock, knoxTunnelShellMock, "UTF-8");
   }
 
 }

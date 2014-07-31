@@ -5,10 +5,9 @@ import static org.junit.Assert.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.HashMap;
 
+import org.apache.commons.io.input.NullInputStream;
 import org.junit.Test;
 
 public class HelpSSHActionTest {
@@ -27,12 +26,11 @@ public class HelpSSHActionTest {
     actionHashMap.put("action2", action2);
     actionHashMap.put("connect", actionWArgs);
 
-    HelpSSHAction helpSSHAction = new HelpSSHAction(actionHashMap);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
+    HelpSSHAction helpSSHAction = new HelpSSHAction(actionHashMap, new NullInputStream(0), out, err);
     helpSSHAction
-        .handleCommand("help", "", new ByteArrayInputStream("".getBytes()), out,
-            err);
+        .handleCommand("help", "");
 
     assertEquals("Knox SSH Provider help.\r\n" +
         "connect <host>[:<port>] Connect to a server within the Knox cluster.\r\n" +
@@ -46,13 +44,11 @@ public class HelpSSHActionTest {
 
     public TestSSHAction(String command, String argGrammar,
                          String description) {
-      super(command, argGrammar, description);
+      super(command, argGrammar, description, null, null, null);
     }
 
     @Override
-    public int handleCommand(String command, String commandLine,
-                             InputStream inputStream, OutputStream outputStream,
-                             OutputStream error) throws IOException {
+    public int handleCommand(String command, String commandLine) throws IOException {
       return 0;
     }
   }

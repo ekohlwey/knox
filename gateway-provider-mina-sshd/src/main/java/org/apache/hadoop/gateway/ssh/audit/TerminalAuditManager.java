@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.hadoop.gateway.ssh.ProviderConfigurer;
@@ -48,15 +49,15 @@ public class TerminalAuditManager {
   }
 
   public void auditStream(InputStream in, String resource, String user,
-      KnoxTunnelShell originatingShell) {
+      KnoxTunnelShell originatingShell, String encoding) {
     terminalWorkQueue.add(new TerminalAuditWork(resource, user, in,
-        originatingShell));
+        originatingShell, encoding));
   }
 
   public void auditMessage(String message, String resource, String user,
                            KnoxTunnelShell originatingShell) {
     terminalWorkQueue.add(new TerminalAuditWork(resource, user,
-        new ByteArrayInputStream(message.getBytes()), originatingShell));
+        new ByteArrayInputStream(message.getBytes(Charset.forName("UTF-8"))), originatingShell, "UTF-8"));
   }
 
 }

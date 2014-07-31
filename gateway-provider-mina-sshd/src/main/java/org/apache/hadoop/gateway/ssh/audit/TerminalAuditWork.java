@@ -15,16 +15,18 @@ public class TerminalAuditWork {
       .getLogger(TerminalAuditWork.class);
 
   private final InputStream inputStream;
-  final String user;
+  private final String user;
   private final KnoxTunnelShell originatingShell;
-  final String resource;
+  private final String resource;
+  private final String encoding;
 
   public TerminalAuditWork(String resource, String user, InputStream inputStream,
-      KnoxTunnelShell originatingShell) {
+      KnoxTunnelShell originatingShell, String encoding) {
     this.inputStream = inputStream;
     this.user = user;
     this.resource = resource;
     this.originatingShell = originatingShell;
+    this.encoding = encoding;
   }
 
   public KnoxTunnelShell getOriginatingShell() {
@@ -41,6 +43,10 @@ public class TerminalAuditWork {
 
   public String getUser() {
     return user;
+  }
+
+  public String getEncoding() {
+    return encoding;
   }
 
 }

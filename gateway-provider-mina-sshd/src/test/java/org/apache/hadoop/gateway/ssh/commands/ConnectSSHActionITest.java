@@ -10,7 +10,6 @@ import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
@@ -183,7 +182,7 @@ public class ConnectSSHActionITest {
           eq(originatingShell));
       expectLastCall();
       fakeTerminalAuditer.auditStream(capture(commandCapture),
-          capture(resourceCapture), eq(sudoToUser), eq(originatingShell));
+          capture(resourceCapture), eq(sudoToUser), eq(originatingShell), eq("UTF-8"));
       expectLastCall();
       fakeTerminalAuditer.auditMessage(anyObject(String.class),
           anyObject(String.class), anyObject(String.class),
@@ -192,13 +191,11 @@ public class ConnectSSHActionITest {
       replay(originatingShell, fakeTerminalAuditer);
 
       SSHConnector sshConnector = new SSHConnector(configuration,
-          originatingShell, new FakeEnvironment());
+          originatingShell, new FakeEnvironment(), inPipe, out, err, "client", "UTF-8");
       ConnectSSHAction connectSSHAction = new ConnectSSHAction(sudoToUser,
-          sshConnector);
+          sshConnector, inPipe, out, err);
       connectSSHAction.handleCommand(simulatedTerminalInput, "localhost:"
-          + SSHD_SERVER_PORT,
-          new ByteArrayInputStream(simulatedTerminalInput.getBytes("UTF-8")),
-          out, err);
+          + SSHD_SERVER_PORT);
       out.close();
       err.close();
 

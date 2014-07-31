@@ -6,80 +6,85 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PushbackReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
+import java.nio.charset.Charset;
+
+import org.apache.sshd.common.util.NoCloseOutputStream;
 
 /**
  * InputStream line reader that handles character conversions correctly
  */
 public class LineReaderInputStream extends FilterInputStream {
 
-  private Reader inputStreamReader;
+  private final Reader inputStreamReader;
+  private final OutputStream echo;
+  private final Charset charset;
+  private final StringBuilder stringBuilder = new StringBuilder();
 
-  public LineReaderInputStream(InputStream in) {
+  public LineReaderInputStream(InputStream in, OutputStream echo,
+      String charsetName) {
     super(in);
-    inputStreamReader = new InputStreamReader(in);
-  }
-
-  public LineReaderInputStream(InputStream in, String charsetName)
-      throws UnsupportedEncodingException {
-    super(in);
-    inputStreamReader = new InputStreamReader(in, charsetName);
+    this.charset = Charset.forName(charsetName);
+    inputStreamReader = new InputStreamReader(in, charset);
+    this.echo = echo;
   }
 
   public String readLine() throws IOException {
-    return readLine(null);
-  }
-
-  /**
-   *
-   * @param echo Echo each character to the echo stream.
-   * @return line from the underlying input stream
-   * @throws IOException
-   */
-  public String readLine(OutputStream echo) throws IOException {
-    ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-
-    boolean read = true;
-    boolean closed = false;
-    int c;
-    while (read) {
-      switch (c = inputStreamReader.read()) {
-        case 4: //EOT or Ctrl-d
+    // -> \n - emit buffer
+    // -> ^D (4) - end
+    // -> END (-1) - end
+    // -> ^H (8) - remove last character
+    boolean continueReading = true;
+    boolean closeStream = false;
+    int readCharacter;
+    Writer outputWriter = null;
+    try {
+      outputWriter = new OutputStreamWriter(new NoCloseOutputStream(echo));
+      while (continueReading) {
+        switch (readCharacter = inputStreamReader.read()) {
+        case '\u0004': // end of stream or ctrl-d
         case -1:
-          read = false;
-          closed = true;
+          continueReading = false;
+          closeStream = true;
+          break;
+        case '\u0008': // backspace
+        case '\u007f':
+          if (stringBuilder.length() > 0) {
+            stringBuilder.setLength(stringBuilder.length() - 1);
+            outputWriter.write("\u0008 \u0008");
+          }
           break;
         case '\n':
-          read = false;
-          if(echo != null) {echo.write(c);}
-          break;
         case '\r':
-          if(inputStreamReader.ready()) {
-            int c2 = inputStreamReader.read();
-            if ((c2 != '\n') && (c2 != -1)) {
-              if (!(inputStreamReader instanceof PushbackReader)) {
-                this.inputStreamReader = new PushbackReader(inputStreamReader);
-              }
-              ((PushbackReader) inputStreamReader).unread(c2);
-            }
-          }
-          read = false;
-          if(echo != null) {echo.write(c);}
+          continueReading = false;
+          outputWriter.write(readCharacter);
           break;
         default:
-          bytesOut.write(c);
-          if(echo != null) {echo.write(c);}
+          // don't track control characters other than the ones mentioned above
+          if((readCharacter >=0 && readCharacter <='\u001f')||(readCharacter>='\u0080'&&readCharacter<='\u009f')){
+            break;
+          }
+          stringBuilder.append((char)readCharacter);
+          outputWriter.write(readCharacter);
           break;
+        }
+        outputWriter.flush();
+      }
+    } finally {
+      if (outputWriter != null) {
+        outputWriter.close();
       }
     }
-
-    if(closed) {
+    if (closeStream) {
       return null;
     }
-
-    return new String(bytesOut.toByteArray());
+    String finalString = new String(stringBuilder);
+    stringBuilder.setLength(0);
+    return finalString;
   }
 
   @Override

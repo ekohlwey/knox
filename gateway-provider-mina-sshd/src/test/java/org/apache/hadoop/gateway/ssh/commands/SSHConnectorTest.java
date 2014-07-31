@@ -1,6 +1,5 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
-import static org.apache.hadoop.gateway.ssh.commands.connect.SSHConnector.SshClientConnector;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
@@ -13,7 +12,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
+import org.apache.hadoop.gateway.ssh.commands.connect.SSHClientConnector;
+import org.apache.hadoop.gateway.ssh.commands.connect.SSHCommandSender;
 import org.apache.hadoop.gateway.ssh.commands.connect.SSHConnector;
+import org.apache.hadoop.gateway.ssh.commands.connect.SudoCommandStreamBuilder;
 import org.apache.sshd.ClientChannel;
 import org.apache.sshd.ClientSession;
 import org.apache.sshd.SshClient;
@@ -25,11 +27,9 @@ import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.SshException;
 import org.apache.sshd.common.future.CloseFuture;
 import org.easymock.EasyMock;
-import org.junit.Assert;
 import org.junit.Test;
 
 import com.google.common.io.ByteStreams;
-import com.google.common.io.CharStreams;
 
 public class SSHConnectorTest {
 
@@ -52,8 +52,8 @@ public class SSHConnectorTest {
         .andReturn(new IOException());
     EasyMock.replay(sshClientMock, connectFutureMock);
 
-    SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration);
+    SSHClientConnector sshClientConnector =
+        new SSHClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock);
@@ -79,8 +79,8 @@ public class SSHConnectorTest {
         .andReturn(new IOException());
     EasyMock.replay(sshClientMock, connectFutureMock);
 
-    SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration);
+    SSHClientConnector sshClientConnector =
+        new SSHClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock);
@@ -112,8 +112,8 @@ public class SSHConnectorTest {
     EasyMock.replay(sshClientMock, connectFutureMock, clientSessionMock,
         authFutureMock);
 
-    SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration);
+    SSHClientConnector sshClientConnector =
+        new SSHClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock, clientSessionMock,
@@ -148,8 +148,8 @@ public class SSHConnectorTest {
     EasyMock.replay(sshClientMock, connectFutureMock, clientSessionMock,
         authFutureMock);
 
-    SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration);
+    SSHClientConnector sshClientConnector =
+        new SSHClientConnector(sshConfiguration);
     sshClientConnector.connect(sshClientMock, host, port);
 
     EasyMock.verify(sshClientMock, connectFutureMock, clientSessionMock,
@@ -183,8 +183,8 @@ public class SSHConnectorTest {
     EasyMock.replay(sshClientMock, connectFutureMock, clientSessionMock,
         authFutureMock);
 
-    SshClientConnector sshClientConnector =
-        new SshClientConnector(sshConfiguration);
+    SSHClientConnector sshClientConnector =
+        new SSHClientConnector(sshConfiguration);
     ClientSession clientSession =
         sshClientConnector.connect(sshClientMock, host, port);
 
@@ -205,8 +205,8 @@ public class SSHConnectorTest {
 
     PipedInputStream pipedInputStream = new PipedInputStream();
 
-    SSHConnector.SudoCommandStreamBuilder sudoCommandStreamBuilder =
-        new SSHConnector.SudoCommandStreamBuilder(sshConfiguration);
+    SudoCommandStreamBuilder sudoCommandStreamBuilder =
+        new SudoCommandStreamBuilder(sshConfiguration);
     InputStream sudoCommandInputStream = sudoCommandStreamBuilder
         .buildSudoCommand(user, new ByteArrayInputStream(command.getBytes()),
             pipedInputStream);
@@ -254,8 +254,8 @@ public class SSHConnectorTest {
 
     EasyMock.replay(clientSessionMock, channelShellMock, openFuture);
 
-    Integer exitstatus = new SSHConnector.SshCommandSender(sshConfiguration,
-        null, null)
+    Integer exitstatus = new SSHCommandSender(sshConfiguration,
+        null, null, null, null)
         .sendCommands(clientSessionMock, commandStream, out, out);
 
     assertEquals(0, exitstatus.intValue());
@@ -300,8 +300,8 @@ public class SSHConnectorTest {
 
     EasyMock.replay(clientSessionMock, channelShellMock, openFuture);
 
-    new SSHConnector.SshCommandSender(sshConfiguration,
-        null, null)
+    new SSHCommandSender(sshConfiguration,
+        null, null, null, null)
         .sendCommands(clientSessionMock, commandStream, out, out);
 
     EasyMock.verify(clientSessionMock, channelShellMock, openFuture);

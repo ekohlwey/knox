@@ -15,6 +15,7 @@ import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.ExitSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.HelpSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.AbstractAction;
+import org.apache.hadoop.gateway.ssh.commands.UnsupportedCommandAction;
 import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.util.NoCloseInputStream;
 import org.apache.sshd.server.Command;
@@ -81,18 +82,20 @@ public class KnoxTunnelShell implements Command {
   public void start(Environment environment) throws IOException {
     Map<String, String> env = environment.getEnv();
     username = env.get(Environment.ENV_USER);
-    Map<PtyMode, Integer> ptys = environment.getPtyModes();
-//    environment.addSignalListener(listener, Signal.WINCH);
+    String encoding = "UTF-8"; //XXX use locale terminal env, default to utf-8
     List<AbstractAction> actions = new ArrayList<AbstractAction>();
-    actions.add(new ConnectSSHAction(username, sshConfiguration, this, environment));
-    actions.add(new HelpSSHAction(actionMap));
-    actions.add(new ExitSSHAction());
+    actions.add(new ConnectSSHAction(username, sshConfiguration, this,
+        environment, inputStream, outputStream, errorStream, encoding));
+    actions.add(new HelpSSHAction(actionMap, inputStream, outputStream,
+        errorStream));
+    actions.add(new ExitSSHAction(inputStream, outputStream, errorStream));
     for (AbstractAction action : actions) {
       actionMap.put(action.getCommand(), action);
     }
-
-    interpreterThread =  new ShellInterpreterThread(
-        this, exitHandler, inputStream, outputStream, errorStream, actionMap);
+    interpreterThread = new ShellInterpreterThread(this, exitHandler,
+        inputStream, outputStream, errorStream, actionMap,
+        new UnsupportedCommandAction(inputStream, outputStream, errorStream),
+        encoding);
     interpreterThread.start();
 
     timer.schedule(new StreamFlusher(outputStream),

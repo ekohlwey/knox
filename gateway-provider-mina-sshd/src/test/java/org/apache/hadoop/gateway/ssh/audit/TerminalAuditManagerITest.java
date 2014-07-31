@@ -41,13 +41,13 @@ public class TerminalAuditManagerITest {
     TerminalAuditWork terminalAuditWork =
         new TerminalAuditWork(resource, user,
             new ByteArrayInputStream(data.getBytes("UTF-8")),
-            knoxTunnelShell);
+            knoxTunnelShell, "UTF-8");
     manager
         .auditStream(new ByteArrayInputStream(data.getBytes()), resource, user,
-            knoxTunnelShell);
+            knoxTunnelShell, "UTF-8");
     manager
         .auditStream(new ByteArrayInputStream(data.getBytes()), resource, user,
-            knoxTunnelShell);
+            knoxTunnelShell, "UTF-8");
     Thread.sleep(100); //wait for audits to be picked up
 
     EasyMock.verify(terminalActionAuditRecorderMock);

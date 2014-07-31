@@ -33,11 +33,13 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   private final InputStream inputStream;
   private final OutputStream output;
   private final OutputStream error;
+  private final UnsupportedCommandAction unsupportedAction;
+  private final String textEncoding;
 
   public ShellInterpreterThread(KnoxTunnelShell knoxShell, ShellExitHandler exitHandler,
                                 InputStream inputStream, OutputStream output,
                                 OutputStream error,
-                                Map<String, AbstractAction> actionMap) {
+                                Map<String, AbstractAction> actionMap, UnsupportedCommandAction unsupportedAction, String textEncoding) {
     super("ShellInterpretedThread");
     this.username = knoxShell.getUsername();
     this.topology = knoxShell.getTopologyName();
@@ -46,6 +48,8 @@ public class ShellInterpreterThread extends Thread implements Closeable {
     this.output = output;
     this.error = error;
     this.shellActions = actionMap;
+    this.unsupportedAction = unsupportedAction;
+    this.textEncoding = textEncoding;
   }
 
   public void run() {
@@ -57,14 +61,14 @@ public class ShellInterpreterThread extends Thread implements Closeable {
     /**
      * The buffered reader approach to readLine was causing the channel to pause.
      */
-    LineReaderInputStream lineReaderStream = new LineReaderInputStream(inputStream);
+    LineReaderInputStream lineReaderStream = new LineReaderInputStream(inputStream, output, textEncoding);
     try {
       while (run) {
         consolePrinter.printf("%s@%s > ", username,
             topology);
         consolePrinter.flush();
 
-        String line = lineReaderStream.readLine(consolePrinter);
+        String line = lineReaderStream.readLine();
         if (line == null) {
           run = false;
           continue;
@@ -85,12 +89,11 @@ public class ShellInterpreterThread extends Thread implements Closeable {
         }
         AbstractAction action = shellActions.get(command);
         if (action == null) {
-          action = new UnsupportedCommandAction();
+          action = unsupportedAction;
         }
         try {
           result = action
-              .handleCommand(command, unconsumedLine, lineReaderStream, output,
-                  error);
+              .handleCommand(command, unconsumedLine);
           //exit codes to exit the shell
           if(result == ShellExitHandler.NORMAL_EXIT) {
             run = false;

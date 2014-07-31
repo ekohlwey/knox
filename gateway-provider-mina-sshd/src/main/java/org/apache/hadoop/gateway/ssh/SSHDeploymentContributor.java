@@ -81,6 +81,8 @@ public class SSHDeploymentContributor extends ProviderDeploymentContributorBase 
   @Override
   public void contributeProvider(DeploymentContext context, Provider provider)
       throws SSHServerException {
+    context.getWebAppDescriptor().createListener().listenerClass(
+        SshTunnelStartupListener.class.getName() );
     SSHConfiguration configuration = configurer.configure(provider);
 
     LOG.configuration(configuration);

@@ -20,31 +20,35 @@ import org.apache.sshd.server.Environment;
 
 public class ConnectSSHAction extends AbstractAction {
 
-  private static final SshGatewayMessages LOG = MessagesFactory.get(SshGatewayMessages.class);
+  private static final SshGatewayMessages LOG = MessagesFactory
+      .get(SshGatewayMessages.class);
   private Matcher matcher = Pattern.compile(
       "\\s*([a-zA-Z0-9.]+)(?::([0-9]+))?\\s*$").matcher("");
   private SSHConnector sshConnector;
-  private final String sudoToUser;
 
-  public ConnectSSHAction(String sudoToUser,
-                          SSHConnector sshConnector) {
+  ConnectSSHAction(String sudoToUser, SSHConnector sshConnector,
+      InputStream inputStream, OutputStream outputStream,
+      OutputStream errorStream) {
     super("connect", "<host>[:<port>]",
-        "Connect to a server within the Knox cluster.");
-    this.sudoToUser = sudoToUser;
+        "Connect to a server within the Knox cluster.", inputStream,
+        outputStream, errorStream);
     this.sshConnector = sshConnector;
   }
 
-  public ConnectSSHAction(String sudoToUser,
-                          SSHConfiguration sshConfiguration,
-                          KnoxTunnelShell tunnelShell, Environment environment) {
-    this(sudoToUser, new SSHConnector(sshConfiguration, tunnelShell, environment));
+  public ConnectSSHAction(String sudoToUser, SSHConfiguration sshConfiguration,
+      KnoxTunnelShell tunnelShell, Environment environment,
+      InputStream inputStream, OutputStream outputStream,
+      OutputStream errorStream, String encoding) {
+    this(sudoToUser, new SSHConnector(sshConfiguration, tunnelShell,
+        environment, inputStream, outputStream, errorStream, sudoToUser, encoding),
+        inputStream, outputStream, errorStream);
   }
 
   @Override
-  public int handleCommand(String command, String commandLine,
-                           InputStream commandStream, OutputStream outputStream, OutputStream error)
+  public int handleCommand(String command, String commandLine)
       throws IOException {
     matcher.reset(commandLine);
+    OutputStream error = getErrorStream();
     if (matcher.matches()) {
       String host = matcher.group(1);
       String portString = matcher.group(2);
@@ -55,9 +59,7 @@ public class ConnectSSHAction extends AbstractAction {
         port = 22;
       }
       try {
-        return sshConnector
-            .connectSSH(sudoToUser, host, port, commandStream, outputStream,
-                error);
+        return sshConnector.connectSSH(host, port);
       } catch (RuntimeSshException e) {
         LOG.failedConnectingToRemote(host + ":" + port, e);
         PrintWriter errorWriter = new PrintWriter(
@@ -71,7 +73,8 @@ public class ConnectSSHAction extends AbstractAction {
     } else {
       PrintWriter errorWriter = new PrintWriter(new NoCloseOutputStream(error));
       errorWriter.print("Invalid argument: " + commandLine + "\r\n");
-      errorWriter.print("please use a hostname of the form <host>[:<port>]\r\n");
+      errorWriter
+          .print("please use a hostname of the form <host>[:<port>]\r\n");
       errorWriter.close();
       error.flush();
       return SSH_ERROR_CODE;

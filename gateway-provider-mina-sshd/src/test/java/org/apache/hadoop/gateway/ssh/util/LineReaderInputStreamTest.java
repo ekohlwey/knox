@@ -7,6 +7,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 
+import org.apache.commons.io.output.NullOutputStream;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
@@ -17,7 +18,7 @@ public class LineReaderInputStreamTest {
     String data = "data\ndata2\n";
 
     LineReaderInputStream lineReader =
-        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()));
+        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()), null, "UTF-8");
 
     assertEquals("data", lineReader.readLine());
     assertEquals("data2", lineReader.readLine());
@@ -29,7 +30,7 @@ public class LineReaderInputStreamTest {
     String data = "data\r\ndata2\n";
 
     LineReaderInputStream lineReader =
-        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()));
+        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()), null, "UTF-8");
 
     assertEquals("data", lineReader.readLine());
     assertEquals("data2", lineReader.readLine());
@@ -41,7 +42,7 @@ public class LineReaderInputStreamTest {
     String data = "data\ndata2";
 
     LineReaderInputStream lineReader =
-        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()));
+        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()), null, "UTF-8");
 
     assertEquals("data", lineReader.readLine());
     assertEquals(null, lineReader.readLine());
@@ -53,7 +54,7 @@ public class LineReaderInputStreamTest {
     String data = "data\n\u0004data2\n";
 
     LineReaderInputStream lineReader =
-        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()));
+        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()), null, "UTF-8");
 
     assertEquals("data", lineReader.readLine());
     assertEquals(null, lineReader.readLine());
@@ -65,12 +66,12 @@ public class LineReaderInputStreamTest {
 
     ByteArrayOutputStream echo = new ByteArrayOutputStream();
     LineReaderInputStream lineReader =
-        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()));
+        new LineReaderInputStream(new ByteArrayInputStream(data.getBytes()), echo, "UTF-8");
 
-    assertEquals("data", lineReader.readLine(echo));
+    assertEquals("data", lineReader.readLine());
     assertEquals("data\n", new String(echo.toByteArray()));
     echo.reset();
-    assertEquals("data2", lineReader.readLine(echo));
+    assertEquals("data2", lineReader.readLine());
     assertEquals("data2\n", new String(echo.toByteArray()));
     assertNull(lineReader.readLine());
   }
@@ -81,7 +82,7 @@ public class LineReaderInputStreamTest {
 
     String encoding = "UTF-16BE";
     LineReaderInputStream lineReader = new LineReaderInputStream(
-        new ByteArrayInputStream(data.getBytes(encoding)), encoding);
+        new ByteArrayInputStream(data.getBytes(encoding)), null, encoding);
 
     assertEquals("data", lineReader.readLine());
     assertEquals("data2", lineReader.readLine());
@@ -92,7 +93,7 @@ public class LineReaderInputStreamTest {
   public void testEmpty() throws Exception {
 
     LineReaderInputStream lineReader =
-        new LineReaderInputStream(new ByteArrayInputStream(new byte[0]));
+        new LineReaderInputStream(new ByteArrayInputStream(new byte[0]), new NullOutputStream(), "UTF-8");
 
     assertNull(lineReader.readLine());
   }
@@ -109,7 +110,7 @@ public class LineReaderInputStreamTest {
     EasyMock.replay(inputStreamMock);
 
     LineReaderInputStream lineReader =
-        new LineReaderInputStream(inputStreamMock);
+        new LineReaderInputStream(inputStreamMock, null, null);
 
     assertNull(lineReader.readLine());
     lineReader.close();
