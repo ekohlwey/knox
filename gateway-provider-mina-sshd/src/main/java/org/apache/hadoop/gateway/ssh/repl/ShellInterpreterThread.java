@@ -8,7 +8,7 @@ import java.io.PrintStream;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.hadoop.gateway.ssh.commands.SSHAction;
+import org.apache.hadoop.gateway.ssh.commands.AbstractAction;
 import org.apache.hadoop.gateway.ssh.commands.UnsupportedCommandAction;
 import org.apache.hadoop.gateway.ssh.util.LineReaderInputStream;
 import org.apache.sshd.common.util.NoCloseOutputStream;
@@ -25,7 +25,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   }
 
   private final ShellExitHandler exitHandler;
-  private Map<String, SSHAction> shellActions = null;
+  private Map<String, AbstractAction> shellActions = null;
   private final ReentrantLock stopLock = new ReentrantLock();
   private boolean stop = false;
   private final String username;
@@ -37,7 +37,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
   public ShellInterpreterThread(KnoxTunnelShell knoxShell, ShellExitHandler exitHandler,
                                 InputStream inputStream, OutputStream output,
                                 OutputStream error,
-                                Map<String, SSHAction> actionMap) {
+                                Map<String, AbstractAction> actionMap) {
     super("ShellInterpretedThread");
     this.username = knoxShell.getUsername();
     this.topology = knoxShell.getTopologyName();
@@ -83,7 +83,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
           command = line;
           unconsumedLine = "";
         }
-        SSHAction action = shellActions.get(command);
+        AbstractAction action = shellActions.get(command);
         if (action == null) {
           action = new UnsupportedCommandAction();
         }
@@ -106,6 +106,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
         run = !stop;
         stopLock.unlock();
       }
+      //XXX it looks like if you ctrl-d here
     } catch (Throwable t) {
       exitHandler.failure(t);
       throw new RuntimeException(t);
@@ -124,7 +125,7 @@ public class ShellInterpreterThread extends Thread implements Closeable {
     exitHandler.normalExit(result);
   }
 
-  public void setShellActions(Map<String, SSHAction> shellActions) {
+  public void setShellActions(Map<String, AbstractAction> shellActions) {
     this.shellActions = shellActions;
   }
 

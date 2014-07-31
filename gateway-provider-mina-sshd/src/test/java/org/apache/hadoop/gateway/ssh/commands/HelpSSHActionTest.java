@@ -22,7 +22,7 @@ public class HelpSSHActionTest {
         new TestSSHAction("action2", "", "Action2 Description");
     TestSSHAction actionWArgs = new TestSSHAction("connect", "<host>[:<port>]",
         "Connect to a server within the Knox cluster.");
-    HashMap<String, SSHAction> actionHashMap = new HashMap<String, SSHAction>();
+    HashMap<String, AbstractAction> actionHashMap = new HashMap<String, AbstractAction>();
     actionHashMap.put("action1", action1);
     actionHashMap.put("action2", action2);
     actionHashMap.put("connect", actionWArgs);
@@ -42,7 +42,7 @@ public class HelpSSHActionTest {
     assertEquals("", new String(err.toByteArray(), "UTF-8"));
   }
 
-  private static class TestSSHAction extends SSHAction {
+  private static class TestSSHAction extends AbstractAction {
 
     public TestSSHAction(String command, String argGrammar,
                          String description) {

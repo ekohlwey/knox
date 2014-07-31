@@ -1,6 +1,6 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
-import static org.apache.hadoop.gateway.ssh.commands.SSHConstants.SSH_ERROR_CODE;
+import static org.apache.hadoop.gateway.ssh.commands.SSHReturnCodes.SSH_ERROR_CODE;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,11 +12,13 @@ import java.util.regex.Pattern;
 import org.apache.hadoop.gateway.i18n.messages.MessagesFactory;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.SshGatewayMessages;
+import org.apache.hadoop.gateway.ssh.commands.connect.SSHConnector;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.apache.sshd.common.RuntimeSshException;
 import org.apache.sshd.common.util.NoCloseOutputStream;
+import org.apache.sshd.server.Environment;
 
-public class ConnectSSHAction extends SSHAction {
+public class ConnectSSHAction extends AbstractAction {
 
   private static final SshGatewayMessages LOG = MessagesFactory.get(SshGatewayMessages.class);
   private Matcher matcher = Pattern.compile(
@@ -34,8 +36,8 @@ public class ConnectSSHAction extends SSHAction {
 
   public ConnectSSHAction(String sudoToUser,
                           SSHConfiguration sshConfiguration,
-                          KnoxTunnelShell tunnelShell) {
-    this(sudoToUser, new SSHConnector(sshConfiguration, tunnelShell));
+                          KnoxTunnelShell tunnelShell, Environment environment) {
+    this(sudoToUser, new SSHConnector(sshConfiguration, tunnelShell, environment));
   }
 
   @Override

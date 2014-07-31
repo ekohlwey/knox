@@ -14,7 +14,7 @@ import org.apache.hadoop.gateway.ssh.StreamFlusher;
 import org.apache.hadoop.gateway.ssh.commands.ConnectSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.ExitSSHAction;
 import org.apache.hadoop.gateway.ssh.commands.HelpSSHAction;
-import org.apache.hadoop.gateway.ssh.commands.SSHAction;
+import org.apache.hadoop.gateway.ssh.commands.AbstractAction;
 import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.util.NoCloseInputStream;
 import org.apache.sshd.server.Command;
@@ -33,7 +33,7 @@ public class KnoxTunnelShell implements Command {
   private OutputStream errorStream;
   private OutputStream outputStream;
   private InputStream inputStream;
-  private final Map<String, SSHAction> actionMap = new HashMap<String, SSHAction>();
+  private final Map<String, AbstractAction> actionMap = new HashMap<String, AbstractAction>();
   private final ShellExitHandler exitHandler = new ShellExitHandler(this);
   private ShellInterpreterThread interpreterThread = null;
   private final String topologyName;
@@ -83,11 +83,11 @@ public class KnoxTunnelShell implements Command {
     username = env.get(Environment.ENV_USER);
     Map<PtyMode, Integer> ptys = environment.getPtyModes();
 //    environment.addSignalListener(listener, Signal.WINCH);
-    List<SSHAction> actions = new ArrayList<SSHAction>();
-    actions.add(new ConnectSSHAction(username, sshConfiguration, this));
+    List<AbstractAction> actions = new ArrayList<AbstractAction>();
+    actions.add(new ConnectSSHAction(username, sshConfiguration, this, environment));
     actions.add(new HelpSSHAction(actionMap));
     actions.add(new ExitSSHAction());
-    for (SSHAction action : actions) {
+    for (AbstractAction action : actions) {
       actionMap.put(action.getCommand(), action);
     }
 

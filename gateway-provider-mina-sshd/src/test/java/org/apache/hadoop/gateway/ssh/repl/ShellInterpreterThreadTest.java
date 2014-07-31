@@ -1,6 +1,7 @@
 package org.apache.hadoop.gateway.ssh.repl;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -11,18 +12,18 @@ import java.io.PipedOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.hadoop.gateway.ssh.commands.SSHAction;
+import org.apache.hadoop.gateway.ssh.commands.AbstractAction;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
 public class ShellInterpreterThreadTest {
 
-  private static class TestSSHAction extends SSHAction {
+  private static class TestAbstractAction extends AbstractAction {
 
     private final String output;
     private final String error;
 
-    public TestSSHAction(String command, String argGrammar,
+    public TestAbstractAction(String command, String argGrammar,
                          String description, String output, String error) {
       super(command, argGrammar, description);
       this.output = output;
@@ -50,9 +51,9 @@ public class ShellInterpreterThreadTest {
   @Test
   public void testShell() throws Exception {
     //verifying the output of the console
-    Map<String, SSHAction> actionMap = new HashMap<String, SSHAction>();
-    actionMap.put("action1", new TestSSHAction("action1", "", "", "Output Action1", "Error Action1"));
-    actionMap.put("action2", new TestSSHAction("action2", "", "", "Output Action2", "Error Action2"));
+    Map<String, AbstractAction> actionMap = new HashMap<String, AbstractAction>();
+    actionMap.put("action1", new TestAbstractAction("action1", "", "", "Output Action1", "Error Action1"));
+    actionMap.put("action2", new TestAbstractAction("action2", "", "", "Output Action2", "Error Action2"));
 
     KnoxTunnelShell knoxTunnelShell = EasyMock.createMock(KnoxTunnelShell.class);
     ShellExitHandler shellExitHandler = EasyMock.createMock(ShellExitHandler.class);
@@ -93,7 +94,7 @@ public class ShellInterpreterThreadTest {
   @Test
   public void testCtrlD() throws Exception {
     //verifying the output of the console
-    Map<String, SSHAction> actionMap = new HashMap<String, SSHAction>();
+    Map<String, AbstractAction> actionMap = new HashMap<String, AbstractAction>();
 
     KnoxTunnelShell knoxTunnelShell = EasyMock.createMock(KnoxTunnelShell.class);
     ShellExitHandler shellExitHandler = EasyMock.createMock(ShellExitHandler.class);

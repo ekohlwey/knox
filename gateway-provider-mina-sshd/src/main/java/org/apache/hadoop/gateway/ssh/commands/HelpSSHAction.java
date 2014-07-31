@@ -8,11 +8,11 @@ import java.util.Map;
 
 import org.apache.sshd.common.util.NoCloseOutputStream;
 
-public class HelpSSHAction extends SSHAction {
+public class HelpSSHAction extends AbstractAction {
 
-  private final Map<String, SSHAction> actions;
+  private final Map<String, AbstractAction> actions;
 
-  public HelpSSHAction(Map<String, SSHAction> actions) {
+  public HelpSSHAction(Map<String, AbstractAction> actions) {
     super("help", "", "Print this help message.");
     this.actions = actions;
   }
@@ -25,14 +25,14 @@ public class HelpSSHAction extends SSHAction {
         outputStream));
     int longestCommand = 1;
     int longestArgs = 1;
-    for (SSHAction action : actions.values()) {
+    for (AbstractAction action : actions.values()) {
       longestCommand = Math.max(longestCommand, action.getCommand().length());
       longestArgs = Math.max(longestArgs, action.getArgGrammar().length());
     }
     printStream.print("Knox SSH Provider help.\r\n");
     String formatString = "%-" + longestCommand + "s %-" + longestArgs
         + "s %s\r\n";
-    for (SSHAction action : actions.values()) {
+    for (AbstractAction action : actions.values()) {
       printStream.format(formatString, action.getCommand(),
           action.getArgGrammar(), action.getDescription());
     }

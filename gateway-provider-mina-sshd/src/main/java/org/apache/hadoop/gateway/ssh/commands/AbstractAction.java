@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public abstract class SSHAction {
+public abstract class AbstractAction {
 
   private final String description;
   private final String command;
@@ -22,7 +22,7 @@ public abstract class SSHAction {
     return argGrammar;
   }
 
-  public SSHAction(String command, String argGrammar, String description) {
+  public AbstractAction(String command, String argGrammar, String description) {
     this.description = description;
     this.argGrammar = argGrammar;
     this.command = command;

@@ -9,7 +9,7 @@ import java.util.Map;
 import org.apache.hadoop.gateway.ssh.repl.ShellExitHandler;
 import org.apache.sshd.common.util.NoCloseOutputStream;
 
-public class ExitSSHAction extends SSHAction {
+public class ExitSSHAction extends AbstractAction {
 
 
   public ExitSSHAction() {

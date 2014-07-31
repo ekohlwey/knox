@@ -7,7 +7,7 @@ import java.io.PrintStream;
 
 import org.apache.sshd.common.util.NoCloseOutputStream;
 
-public class UnsupportedCommandAction extends SSHAction {
+public class UnsupportedCommandAction extends AbstractAction {
 
   public UnsupportedCommandAction() {
     super(null, null, null);

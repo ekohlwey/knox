@@ -1,6 +1,6 @@
 package org.apache.hadoop.gateway.ssh.commands;
 
-import static org.apache.hadoop.gateway.ssh.commands.SSHConnector.SshClientConnector;
+import static org.apache.hadoop.gateway.ssh.commands.connect.SSHConnector.SshClientConnector;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
+import org.apache.hadoop.gateway.ssh.commands.connect.SSHConnector;
 import org.apache.sshd.ClientChannel;
 import org.apache.sshd.ClientSession;
 import org.apache.sshd.SshClient;
@@ -254,8 +255,8 @@ public class SSHConnectorTest {
     EasyMock.replay(clientSessionMock, channelShellMock, openFuture);
 
     Integer exitstatus = new SSHConnector.SshCommandSender(sshConfiguration,
-        new SSHConnector.ChannelShellPtyModesSetter())
-        .sendCommand(clientSessionMock, commandStream, out, out);
+        null, null)
+        .sendCommands(clientSessionMock, commandStream, out, out);
 
     assertEquals(0, exitstatus.intValue());
     assertEquals(ptyModes.get(PtyMode.ECHO), new Integer(1));
@@ -300,8 +301,8 @@ public class SSHConnectorTest {
     EasyMock.replay(clientSessionMock, channelShellMock, openFuture);
 
     new SSHConnector.SshCommandSender(sshConfiguration,
-        new SSHConnector.ChannelShellPtyModesSetter())
-        .sendCommand(clientSessionMock, commandStream, out, out);
+        null, null)
+        .sendCommands(clientSessionMock, commandStream, out, out);
 
     EasyMock.verify(clientSessionMock, channelShellMock, openFuture);
   }

@@ -1,7 +1,7 @@
-package org.apache.hadoop.gateway.ssh.commands;
+package org.apache.hadoop.gateway.ssh.commands.connect;
 
 import static java.nio.charset.Charset.forName;
-import static org.apache.hadoop.gateway.ssh.commands.SSHConstants.SSH_ERROR_CODE;
+import static org.apache.hadoop.gateway.ssh.commands.SSHReturnCodes.SSH_ERROR_CODE;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -12,7 +12,6 @@ import java.io.PipedOutputStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.util.Arrays;
-import java.util.Map;
 
 import org.apache.commons.io.input.TeeInputStream;
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
@@ -28,11 +27,12 @@ import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.future.OpenFuture;
 import org.apache.sshd.common.NamedFactory;
-import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.SshException;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.util.NoCloseInputStream;
 import org.apache.sshd.common.util.NoCloseOutputStream;
+import org.apache.sshd.server.Environment;
+import org.apache.sshd.server.Signal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,9 +51,9 @@ public class SSHConnector {
     public SshClient build() {
       SshClient client = SshClient.setUpDefaultClient();
       client.setKeyPairProvider(new FileKeyPairProvider(
-          new String[]{sshConfiguration.getKnoxKeyfile()}));
+          new String[] { sshConfiguration.getKnoxKeyfile() }));
       client.setUserAuthFactories(Arrays
-          .<NamedFactory<UserAuth>>asList(new UserAuthPublicKey.Factory()));
+          .<NamedFactory<UserAuth>> asList(new UserAuthPublicKey.Factory()));
       return client;
     }
   }
@@ -76,7 +76,7 @@ public class SSHConnector {
     }
 
     public SshClientConnectionUnauthorizedException(String message,
-                                                    SshException e) {
+        SshException e) {
       super(message, e);
     }
   }
@@ -94,11 +94,12 @@ public class SSHConnector {
         SshClientConnectTimeoutException, SshClientConnectionFailedException,
         SshClientConnectionUnauthorizedException {
 
-      ConnectFuture connectFuture =
-          sshClient.connect(sshConfiguration.getKnoxLoginUser(), host, port);
+      // XXX a failed connection attempt (UnresolvedAddressException) will kill
+      // the connection
+      ConnectFuture connectFuture = sshClient.connect(
+          sshConfiguration.getKnoxLoginUser(), host, port);
       if (!connectFuture.await(sshConfiguration.getTunnelConnectTimeout())) {
-        throw new SshClientConnectTimeoutException(
-            connectFuture.getException());
+        throw new SshClientConnectTimeoutException(connectFuture.getException());
       }
       if (!connectFuture.isConnected()) {
         throw new SshClientConnectionFailedException(
@@ -127,12 +128,10 @@ public class SSHConnector {
     }
 
     public InputStream buildSudoCommand(String sudoToUser, InputStream command,
-                                        PipedInputStream loggingInputStream)
-        throws IOException {
-      PipedOutputStream loggingOutputStream =
-          new PipedOutputStream(loggingInputStream);
-      InputStream tee =
-          new TeeInputStream(command, loggingOutputStream, true);
+        PipedInputStream loggingInputStream) throws IOException {
+      PipedOutputStream loggingOutputStream = new PipedOutputStream(
+          loggingInputStream);
+      InputStream tee = new TeeInputStream(command, loggingOutputStream, true);
 
       String sudoCommand = sshConfiguration.getLoginCommand();
       String sudoCommandWithUser = sudoCommand.replace("{0}", sudoToUser);
@@ -141,88 +140,65 @@ public class SSHConnector {
     }
   }
 
-  public static class ChannelShellPtyModesSetter {
-
-    public Map<PtyMode, Integer> setupSensiblePtyModes(
-        ChannelShell channelShell, Map<PtyMode, Integer> ptyModes,
-        Integer lines, Integer columns, Integer width, Integer height)
-        throws IOException {
-      channelShell.setupSensibleDefaultPty();
-      if(ptyModes == null) {
-        ptyModes = channelShell.getPtyModes();
-        ptyModes.put(PtyMode.ECHO, 1); //make sure input is still echoing
-        ptyModes.put(PtyMode.ICANON, 1); //line editing mode
-        ptyModes.put(PtyMode.VEOL, 13); //^M carriage return for EOL
-        ptyModes.put(PtyMode.VEOL2, 13); //^M carriage return for EOL
-        ptyModes.put(PtyMode.ICRNL, 1); //Carriage Return -> Line Feed conversion
-      }
-      if (width != null) {
-        channelShell.setPtyWidth(width);
-      }
-      if (height != null) {
-        channelShell.setPtyHeight(height);
-      }
-      if (columns != null) {
-        channelShell.setPtyColumns(columns);
-      }
-      if (lines != null) {
-        channelShell.setPtyLines(lines);
-      }
-      return ptyModes;
-    }
-  }
-
   public static class SshCommandSender {
 
     private final SSHConfiguration sshConfiguration;
-    private final ChannelShellPtyModesSetter channelShellPtyModesSetter;
+    private final TerminalSizeListener.Factory channelShellPtyModesSetterFactory;
+    private final Environment environment;
+    private final PtyModesSetter ptyModeSetter;
+    private final TerminalSizeSetter terminalSizeSetter;
 
     public SshCommandSender(SSHConfiguration sshConfiguration,
-                            ChannelShellPtyModesSetter channelShellPtyModesSetter) {
+        TerminalSizeListener.Factory channelShellPtyModesSetterFactory,
+        Environment environment, PtyModesSetter ptySetter,
+        TerminalSizeSetter terminalSizeSetter) {
       this.sshConfiguration = sshConfiguration;
-      this.channelShellPtyModesSetter = channelShellPtyModesSetter;
+      this.channelShellPtyModesSetterFactory = channelShellPtyModesSetterFactory;
+      this.environment = environment;
+      this.ptyModeSetter = ptySetter;
+      this.terminalSizeSetter = terminalSizeSetter;
+    }
+
+    public SshCommandSender(SSHConfiguration sshConfiguration,
+        TerminalSizeListener.Factory channelShellPtyModesSetterFactory,
+        Environment environment) {
+      this(sshConfiguration, channelShellPtyModesSetterFactory, environment,
+          new PtyModesSetter(), new TerminalSizeSetter());
     }
 
     /**
      * @return Exit status
      */
-    public Integer sendCommand(ClientSession session,
-                               InputStream commandInputStream,
-                               OutputStream stdOut, OutputStream stdErr)
+    public Integer sendCommands(ClientSession session,
+        InputStream commandInputStream, OutputStream stdOut, OutputStream stdErr)
         throws IOException, InterruptedException,
         SshClientConnectionFailedException {
       ChannelShell channelShell = null;
       try {
         channelShell = session.createShellChannel();
-        Map<PtyMode, Integer> ptyModes = channelShellPtyModesSetter
-            .setupSensiblePtyModes(channelShell, null, null, null, null, null);
-        int ptyColumns = channelShell.getPtyColumns();
-        int ptyHeight = channelShell.getPtyHeight();
-        int ptyWidth = channelShell.getPtyWidth();
-        int ptyLines = channelShell.getPtyLines();
+        TerminalSizeListener sizeChangeListener = channelShellPtyModesSetterFactory
+            .getModeSetter(channelShell);
+        ptyModeSetter.setPtyModesFromEnvrionment(channelShell, environment);
+        terminalSizeSetter.setTerminalSize(channelShell, environment);
 
         channelShell.setIn(new NoCloseInputStream(commandInputStream));
         channelShell.setOut(new NoCloseOutputStream(stdOut));
         channelShell.setErr(new NoCloseOutputStream(stdErr));
         OpenFuture openFuture = channelShell.open();
-        boolean channelOpen =
-            openFuture.await(sshConfiguration.getTunnelConnectTimeout());
+        boolean channelOpen = openFuture.await(sshConfiguration
+            .getTunnelConnectTimeout());
         if (!channelOpen) {
           throw new SshClientConnectionFailedException(
               openFuture.getException());
         }
-        boolean closed = false;
-        while(!closed) {
-          int status = channelShell.waitFor(ClientChannel.CLOSED, sshConfiguration.getTunnelConnectTimeout());
-          closed = (status & ClientChannel.CLOSED) != 0; //closed
-          if(!closed) {
-            //redo these to keep the environment
-            channelShellPtyModesSetter
-                .setupSensiblePtyModes(channelShell, ptyModes, ptyLines, ptyColumns,
-                    ptyWidth, ptyHeight);
-          }
+        environment.addSignalListener(sizeChangeListener, Signal.WINCH);
+        try {
+          channelShell.waitFor(ClientChannel.CLOSED, -1);
+          return channelShell.getExitStatus();
+        } finally {
+          environment.removeSignalListener(sizeChangeListener);
         }
-        return channelShell.getExitStatus();
+
       } finally {
         if (channelShell != null) {
           channelShell.close(true);
@@ -232,7 +208,7 @@ public class SSHConnector {
   }
 
   static void printErrorMessage(String errMessage, OutputStream error,
-                                Throwable cause) {
+      Throwable cause) {
     if (LOG.isInfoEnabled()) {
       LOG.info(errMessage, cause);
     }
@@ -254,27 +230,28 @@ public class SSHConnector {
   private final SshCommandSender sshCommandSender;
 
   public SSHConnector(SSHConfiguration sshConfiguration,
-                      KnoxTunnelShell originatingShell) {
+      KnoxTunnelShell originatingShell, Environment environment) {
     this(sshConfiguration, TerminalAuditManager.get(sshConfiguration),
-        originatingShell, new ChannelShellPtyModesSetter());
+        originatingShell, new TerminalSizeListener.Factory(environment),
+        environment);
   }
 
   SSHConnector(SSHConfiguration sshConfiguration,
-                      TerminalAuditManager auditManager,
-                      KnoxTunnelShell originatingShell,
-                      ChannelShellPtyModesSetter channelShellPtyModesSetter) {
-    this(auditManager, originatingShell, new SshClientBuilder(sshConfiguration),
-        new SshClientConnector(sshConfiguration),
-        new SudoCommandStreamBuilder(sshConfiguration),
-        new SshCommandSender(sshConfiguration, channelShellPtyModesSetter));
+      TerminalAuditManager auditManager, KnoxTunnelShell originatingShell,
+      TerminalSizeListener.Factory channelShellPtyModesSetter,
+      Environment environment) {
+    this(auditManager, originatingShell,
+        new SshClientBuilder(sshConfiguration), new SshClientConnector(
+            sshConfiguration), new SudoCommandStreamBuilder(sshConfiguration),
+        new SshCommandSender(sshConfiguration, channelShellPtyModesSetter,
+            environment));
   }
 
   SSHConnector(TerminalAuditManager auditManager,
-               KnoxTunnelShell originatingShell,
-               SshClientBuilder sshClientBuilder,
-               SshClientConnector sshClientConnector,
-               SudoCommandStreamBuilder sudoCommandStreamBuilder,
-               SshCommandSender sshCommandSender) {
+      KnoxTunnelShell originatingShell, SshClientBuilder sshClientBuilder,
+      SshClientConnector sshClientConnector,
+      SudoCommandStreamBuilder sudoCommandStreamBuilder,
+      SshCommandSender sshCommandSender) {
     this.auditManager = auditManager;
     this.originatingShell = originatingShell;
     this.sshClientBuilder = sshClientBuilder;
@@ -284,8 +261,7 @@ public class SSHConnector {
   }
 
   public int connectSSH(String sudoToUser, String host, int port,
-                        InputStream commandStream, OutputStream outputStream,
-                        OutputStream error) {
+      InputStream commandStream, OutputStream outputStream, OutputStream error) {
     Integer exit = 0;
     SshClient sshClient = null;
     ClientSession session = null;
@@ -297,39 +273,35 @@ public class SSHConnector {
       session = sshClientConnector.connect(sshClient, host, port);
 
       PipedInputStream loggingInputStream = new PipedInputStream();
-      sudoingInputStream = sudoCommandStreamBuilder
-          .buildSudoCommand(sudoToUser, commandStream, loggingInputStream);
+      sudoingInputStream = sudoCommandStreamBuilder.buildSudoCommand(
+          sudoToUser, commandStream, loggingInputStream);
 
       auditManager.auditMessage("Logged in", host + ":" + port, sudoToUser,
           originatingShell);
-      auditManager
-          .auditStream(loggingInputStream, host + ":" + port, sudoToUser,
-              originatingShell);
+      auditManager.auditStream(loggingInputStream, host + ":" + port,
+          sudoToUser, originatingShell);
 
-      exit = sshCommandSender
-          .sendCommand(session, sudoingInputStream, outputStream, error);
+      exit = sshCommandSender.sendCommands(session, sudoingInputStream,
+          outputStream, error);
       auditManager.auditMessage("Logged out", host + ":" + port, sudoToUser,
           originatingShell);
     } catch (SshClientConnectTimeoutException e) {
-      printErrorMessage("Failed to connect to " + host + ":" + port +
-          " connection timed out.", error, e.getCause());
+      printErrorMessage("Failed to connect to " + host + ":" + port
+          + " connection timed out.", error, e.getCause());
       return SSH_ERROR_CODE;
     } catch (SshClientConnectionFailedException e) {
-      printErrorMessage(
-          "Was unable to connect to server: " + host + ":" + port +
-              "  connection failed.", error, e.getCause());
+      printErrorMessage("Was unable to connect to server: " + host + ":" + port
+          + "  connection failed.", error, e.getCause());
       return SSH_ERROR_CODE;
     } catch (SshClientConnectionUnauthorizedException e) {
-      printErrorMessage("Failed to connect to " + host + ":" + port +
-          " User[" + sudoToUser + "] connection unauthorized.", error,
-          e.getCause());
+      printErrorMessage("Failed to connect to " + host + ":" + port + " User["
+          + sudoToUser + "] connection unauthorized.", error, e.getCause());
       return SSH_ERROR_CODE;
     } catch (IOException e) {
       LOG.error("Unable to connect to Knox cluster server.", e);
       return SSH_ERROR_CODE;
     } catch (InterruptedException e) {
-      LOG.error("Unexpected interruption connecting to Knox cluster server.",
-          e);
+      LOG.error("Unexpected interruption connecting to Knox cluster server.", e);
       Thread.currentThread().interrupt();
       return SSH_ERROR_CODE;
     } finally {
@@ -337,8 +309,8 @@ public class SSHConnector {
         try {
           sudoingInputStream.close();
         } catch (IOException e) {
-          LOG.error("Unable to close logging tee. " +
-              "Audit information may have been lost.", e);
+          LOG.error("Unable to close logging tee. "
+              + "Audit information may have been lost.", e);
         }
       }
       if (session != null) {
@@ -348,7 +320,7 @@ public class SSHConnector {
         sshClient.stop();
       }
     }
-    //exit is an Integer that can be null, the auto-boxing could cause an NPE
+    // exit is an Integer that can be null, the auto-boxing could cause an NPE
     return exit == null ? SSH_ERROR_CODE : exit;
   }
 

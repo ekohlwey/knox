@@ -22,16 +22,25 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
 import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Map;
 
 import org.apache.hadoop.gateway.ssh.SSHConfiguration;
 import org.apache.hadoop.gateway.ssh.SSHDeploymentContributorTBase.PipingCommandFactory;
 import org.apache.hadoop.gateway.ssh.audit.TerminalAuditManager;
+import org.apache.hadoop.gateway.ssh.commands.connect.TerminalSizeListener;
+import org.apache.hadoop.gateway.ssh.commands.connect.SSHConnector;
 import org.apache.hadoop.gateway.ssh.repl.KnoxTunnelShell;
 import org.apache.hadoop.test.category.IntegrationTests;
 import org.apache.sshd.SshServer;
+import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.common.NamedFactory;
+import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.PublickeyAuthenticator;
+import org.apache.sshd.server.Signal;
+import org.apache.sshd.server.SignalListener;
 import org.apache.sshd.server.UserAuth;
 import org.apache.sshd.server.auth.UserAuthPublicKey;
 import org.apache.sshd.server.session.ServerSession;
@@ -49,6 +58,65 @@ import com.google.common.io.ByteStreams;
 
 @RunWith(JUnit4.class)
 public class ConnectSSHActionITest {
+  
+  public static class FakeEnvironment implements Environment {
+
+    @Override
+    public Map<String, String> getEnv() {
+      
+      return null;
+    }
+
+    @Override
+    public Map<PtyMode, Integer> getPtyModes() {
+      
+      return null;
+    }
+
+    @Override
+    public void addSignalListener(SignalListener listener, Signal... signal) {
+      
+    }
+
+    @Override
+    public void addSignalListener(SignalListener listener,
+        EnumSet<Signal> signals) {
+     
+      
+    }
+
+    @Override
+    public void addSignalListener(SignalListener listener) {
+      
+    }
+
+    @Override
+    public void removeSignalListener(SignalListener listener) {
+      
+    }
+    
+  }
+
+  public static class FakePtyModesSetter extends TerminalSizeListener {
+    public FakePtyModesSetter() {
+      super(null, null, null);
+    }
+
+    @Override
+    public void signal(Signal signal) {
+    }
+  }
+
+  public static class FakePtySetterFactory extends TerminalSizeListener.Factory {
+    public FakePtySetterFactory() {
+      super(null);
+    }
+
+    @Override
+    public TerminalSizeListener getModeSetter(ChannelShell channelShell) {
+      return new FakePtyModesSetter();
+    }
+  }
 
   public static final int SSHD_SERVER_PORT = 60023;
   @Rule
@@ -78,7 +146,7 @@ public class ConnectSSHActionITest {
     server.setKeyPairProvider(new FileKeyPairProvider(
         new String[] { publicKeyFile.toString() }));
     server.setPublickeyAuthenticator(new PublickeyAuthenticator() {
-      
+
       @Override
       public boolean authenticate(String username, PublicKey key,
           ServerSession session) {
@@ -99,8 +167,8 @@ public class ConnectSSHActionITest {
       configuration.setTunnelConnectTimeout(1000);
 
       String simulatedTerminalInput = "magic word!\nanotherline!\n";
-      BufferedReader in =
-          new BufferedReader(new StringReader(simulatedTerminalInput));
+      BufferedReader in = new BufferedReader(new StringReader(
+          simulatedTerminalInput));
       ByteArrayOutputStream out = new ByteArrayOutputStream();
       ByteArrayOutputStream err = new ByteArrayOutputStream();
 
@@ -110,32 +178,34 @@ public class ConnectSSHActionITest {
           .createMock(KnoxTunnelShell.class);
       Capture<InputStream> commandCapture = new Capture<InputStream>();
       Capture<String> resourceCapture = new Capture<String>();
-      fakeTerminalAuditer
-          .auditMessage(anyObject(String.class), anyObject(String.class),
-              anyObject(String.class), eq(originatingShell));
+      fakeTerminalAuditer.auditMessage(anyObject(String.class),
+          anyObject(String.class), anyObject(String.class),
+          eq(originatingShell));
       expectLastCall();
       fakeTerminalAuditer.auditStream(capture(commandCapture),
           capture(resourceCapture), eq(sudoToUser), eq(originatingShell));
       expectLastCall();
-      fakeTerminalAuditer
-          .auditMessage(anyObject(String.class), anyObject(String.class),
-              anyObject(String.class), eq(originatingShell));
+      fakeTerminalAuditer.auditMessage(anyObject(String.class),
+          anyObject(String.class), anyObject(String.class),
+          eq(originatingShell));
       expectLastCall();
       replay(originatingShell, fakeTerminalAuditer);
 
-      SSHConnector sshConnector =
-          new SSHConnector(configuration, fakeTerminalAuditer,
-              originatingShell, new SSHConnector.ChannelShellPtyModesSetter());
-      ConnectSSHAction connectSSHAction =
-          new ConnectSSHAction(sudoToUser, sshConnector);
-      connectSSHAction.handleCommand(simulatedTerminalInput,
-          "localhost:" + SSHD_SERVER_PORT, new ByteArrayInputStream(simulatedTerminalInput.getBytes("UTF-8")), out, err);
+      SSHConnector sshConnector = new SSHConnector(configuration,
+          originatingShell, new FakeEnvironment());
+      ConnectSSHAction connectSSHAction = new ConnectSSHAction(sudoToUser,
+          sshConnector);
+      connectSSHAction.handleCommand(simulatedTerminalInput, "localhost:"
+          + SSHD_SERVER_PORT,
+          new ByteArrayInputStream(simulatedTerminalInput.getBytes("UTF-8")),
+          out, err);
       out.close();
       err.close();
 
       assertEquals("connected error\n", new String(err.toByteArray(), "UTF-8"));
       assertEquals("connected out\n", new String(out.toByteArray(), "UTF-8"));
-      assertEquals(simulatedTerminalInput, new String(ByteStreams.toByteArray(commandCapture.getValue())));
+      assertEquals(simulatedTerminalInput,
+          new String(ByteStreams.toByteArray(commandCapture.getValue())));
       assertEquals("localhost:" + SSHD_SERVER_PORT, resourceCapture.getValue());
 
       byte[] simulatedInputSink = new byte[simulatedTerminalInput.length()];
