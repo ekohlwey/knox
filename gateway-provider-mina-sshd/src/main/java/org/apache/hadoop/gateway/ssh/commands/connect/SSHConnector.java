@@ -11,6 +11,8 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import org.apache.commons.io.input.TeeInputStream;
@@ -93,9 +95,11 @@ public class SSHConnector {
         throws IOException, InterruptedException,
         SshClientConnectTimeoutException, SshClientConnectionFailedException,
         SshClientConnectionUnauthorizedException {
-
-      // XXX a failed connection attempt (UnresolvedAddressException) will kill
-      // the connection
+      try{
+        InetAddress.getByName(host);
+      } catch(UnknownHostException e){
+        throw new SshClientConnectionFailedException(e);
+      }
       ConnectFuture connectFuture = sshClient.connect(
           sshConfiguration.getKnoxLoginUser(), host, port);
       if (!connectFuture.await(sshConfiguration.getTunnelConnectTimeout())) {
